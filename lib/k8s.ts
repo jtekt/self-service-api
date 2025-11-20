@@ -2,7 +2,6 @@ import * as k8s from "@kubernetes/client-node";
 import {
   CLUSTER_ACCESS_URI,
   PGRST_IMAGE,
-  PGRST_DB_ANON_ROLE,
   PGRST_JWT_SECRET,
 } from "@/config";
 import { getDbUsername } from "./uri";
@@ -27,7 +26,11 @@ export async function createDeployment(
 ): Promise<void> {
   const { namespace, name, dbUri, schema, accessControl } = params;
 
-  const anon_role = getDbUsername(dbUri) || PGRST_DB_ANON_ROLE;
+  const username_role = getDbUsername(dbUri);
+
+  if(!username_role) {
+    throw new Error("Error finding the database username")
+  }
 
   const deployment: k8s.V1Deployment = {
     apiVersion: "apps/v1",
@@ -66,7 +69,7 @@ export async function createDeployment(
               },
               env: [
                 { name: "PGRST_DB_URI", value: dbUri },
-                { name: "PGRST_DB_ANON_ROLE", value: anon_role },
+                { name: "PGRST_DB_ANON_ROLE", value: username_role },
                 { name: "PGRST_SCHEMAS", value: schema },
                 { name: "PGRST_SERVER_PORT", value: "3000" },
               ],

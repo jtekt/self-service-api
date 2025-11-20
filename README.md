@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Self-PostgREST UI
 
-## Getting Started
+A lightweight UI to deploy **PostgREST** services on a **Kubernetes cluster**.
 
-First, run the development server:
+This application allows users to self-service the creation of a PostgREST API by:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+1.  **Connecting to PostgreSQL** (providing database credentials).
+2.  **Choosing a schema** from the connected database.
+3.  **Setting access rules** (authentication mode).
+4.  **Deploying PostgREST** into the same Kubernetes cluster where this app is running.
+
+---
+
+## 🔐 Access Control
+
+Choose how your generated API should authenticate:
+
+- **`public`** &mdash; No authentication required.
+- **`authenticated`** &mdash; Requires any valid OIDC JWT.
+- **`specific`** &mdash; Restricted to only selected OIDC users.
+
+For authenticated modes, the application uses the JWT claim: **`preferred_username`**.
+
+> **Note:** To enable authenticated modes, the `PGRST_JWT_SECRET` environment variable must contain a **JWKS** (e.g., the public key set from an identity provider like Keycloak).
+>
+> **Example JWKS URI:**
+>
+> ```
+> /realms/<realm>/protocol/openid-connect/certs
+> ```
+
+---
+
+## 📦 Deployment Flow
+
+The UI streamlines the setup process through these steps:
+
+1.  User connects to the database.
+2.  The app introspects available schemas.
+3.  User selects the desired schema and defines access rules.
+4.  The app deploys a dedicated PostgREST instance in the **same Kubernetes cluster**.
+5.  A Kubernetes **NodePort** service is created for external access.
+6.  User receives the final API URL, which will look like:
+
+```
+http://<CLUSTER_ACCESS_URI>:<nodePort>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ⚙️ Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Configure the UI application using the following environment variables:
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable                 | Description                                                     | Example                                        |
+| :----------------------- | :-------------------------------------------------------------- | :--------------------------------------------- |
+| **`PGRST_IMAGE`**        | PostgREST Docker image used for deployments.                    | `postgrest/postgrest`                          |
+| **`PGRST_JWT_SECRET`**   | JWKS for JWT validation.                                        | `{"keys":[{"alg":"RS256","e":"AQAB","kid":"...` |
+| **`K8S_NAMESPACE`**      | Kubernetes namespace where PostgREST will be deployed.          | `default`                                      |
+| **`K8S_APP_PREFIX`**     | Prefix used when naming the PostgREST deployments and services. | `self-postgrest`                               |
+| **`CLUSTER_ACCESS_URI`** | Base URL used to generate the final API URL (NodePort access).  | `http://111.11.11.11`                          |
