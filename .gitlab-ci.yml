@@ -1,0 +1,115 @@
+# Define the pipeline stages
+stages:
+  - build # Stage responsible for building the Docker image
+  - deploy # Stage responsible for deploying the application to Kubernetes
+
+variables:
+  APPLICATION_NAME: autocicd-fabel-self-postgrest
+  K8S_NAMESPACE: auto-cicd
+  CONTAINER_IMAGE_NAME: ${K8S_NAMESPACE}/fabel/self-postgrest
+  CONTAINER_IMAGE: ${CONTAINER_REGISTRY_URL}/${CONTAINER_IMAGE_NAME}
+  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+  K8S_IMAGE_PULL_SECRET_NAME: ecr-credentials
+  K8S_ENV_SECRET_NAME: ${APPLICATION_NAME}
+  PORT: 3000
+
+# Build the Docker container image
+build-job:
+  stage: build
+  tags:
+    # optional: Docker is the default runner
+    - docker
+  only:
+    # Branches to run the Build stage
+    - main
+  before_script:
+    # Create repository if needed
+    # The repository might already exist if the pipeline have already run
+    - >
+      aws ecr create-repository --repository-name ${CONTAINER_IMAGE_NAME}
+      || echo "Repository might have already existed"
+  script:
+    # Build the container image
+    - docker build -t ${CONTAINER_IMAGE_TAGGED} .
+    # Push container images to registry
+    - docker push ${CONTAINER_IMAGE_TAGGED}
+
+# Deploy to Kubernetes
+deploy-job:
+  stage: deploy
+  tags:
+    # optional: Docker is the default runner
+    - docker
+  only:
+    # Branches to run the Deploy stage
+    - main
+  before_script:
+    # Uses the correct Kubernetes context
+    - kubectl config use-context ${K8S_NAMESPACE}/gitlab-agent-for-kubernetes:${K8S_NAMESPACE}
+
+    # Uses the correct Kubernetes namespace
+    - kubectl config set-context --current --namespace=${K8S_NAMESPACE}
+  script:
+    # Deploy the app to Kubernetes using the Kubernetes manifest
+
+    # Create an environment secret containing necessary variables
+    # The ENV file is saved as a CI/CD variable in GitLab under Settings -> CI/CD -> Variables with the key `ENV` and the type set to `File`.
+    # This file contains key-value pairs of environment variables needed for the application.
+    - kubectl create secret generic $K8S_ENV_SECRET_NAME --from-env-file=$ENV --dry-run=client -o yaml | kubectl apply -f -
+
+    # Apply the Kubernetes manifest
+    - KUBECTL_APPLY_OUTPUT=$(envsubst < kubernetes_manifest.yml | kubectl apply -f -)
+
+    # Get the Kubernetes service details
+    - KUBECTL_GET_SVC=$(kubectl get svc $APPLICATION_NAME | grep $APPLICATION_NAME)
+
+    # Ensure the service exists and extract the exposed port
+    - |
+      if [[ -z "$KUBECTL_GET_SVC" ]]; then
+        echo "Error: Could not find service port for $APPLICATION_NAME"
+        exit 1
+      fi
+
+    - PORT=$(sed "s/.*\([0-9]\+\):\([0-9]\+\)\/TCP.*/\2/" <<< "$KUBECTL_GET_SVC")
+
+    # The IP address is the static IP of one node from the Kubernetes cluster or a load balancer
+    - |
+      if [ -n "$K8S_HOST" ]; then
+        echo "The APP is available at $K8S_HOST:$PORT"
+      fi
+
+    # Send an email notification if the deployment was newly created
+    - |
+      if [[ $KUBECTL_APPLY_OUTPUT == *"created"* ]]; then
+        if [ -n "$K8S_HOST" ]; then
+          docker run \
+            -e SMTP_PORT=$AWS_SES_PORT \
+            -e SMTP_HOST=$AWS_SES_HOST \
+            -e SMTP_USERNAME=$AWS_SES_USERNAME \
+            -e SMTP_PASSWORD=$AWS_SES_PASSWORD \
+            -e SMTP_TO=$GITLAB_USER_EMAIL \
+            -e SMTP_FROM=$AWS_SES_FROM \
+            -e SMTP_SUBJECT="Auto CICD" \
+            -e SMTP_MESSAGE="Your application $APPLICATION_NAME is being deployed to $K8S_HOST:$PORT. Please note that it might take a few minutes for the application to start." \
+            moreillon/sendemail
+
+          echo "Email was sent to: $GITLAB_USER_EMAIL"
+        else
+          echo "Your application $APPLICATION_NAME was deployed"
+        fi
+      else
+        echo "Please note that it might take a few minutes for the application to update."
+      fi
+
+    # Validate deployment rollout status
+    # This command waits for the deployment to complete successfully
+    # If the deployment fails or times out, the pipeline will fail with an error
+    - echo "Validating deployment rollout status for $APPLICATION_NAME..."
+    - |
+      if ! kubectl rollout status deployment/$APPLICATION_NAME --timeout=600s; then
+        echo ""
+        echo "❌ DEPLOYMENT VALIDATION FAILED!"
+        echo ""
+        exit 1
+      fi
+    - echo "✅ Deployment rollout completed successfully!"

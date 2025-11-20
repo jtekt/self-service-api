@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APPLICATION_NAME}
+  annotations:
+    users: ${GITLAB_USER_EMAIL}
+    repository.url: ${CI_PROJECT_URL}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${APPLICATION_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${APPLICATION_NAME}
+    spec:
+      containers:
+        - name: ${APPLICATION_NAME}
+          image: ${CONTAINER_IMAGE_TAGGED}
+          envFrom:
+            - secretRef:
+                name: ${K8S_ENV_SECRET_NAME}
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "10m"
+            limits:
+              memory: "512Mi"
+              cpu: "600m"
+      imagePullSecrets:
+        - name: ${K8S_IMAGE_PULL_SECRET_NAME}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${APPLICATION_NAME}
+  labels:
+    app: ${APPLICATION_NAME}
+spec:
+  type: NodePort
+  selector:
+    app: ${APPLICATION_NAME}
+  ports:
+    - port: ${PORT}
+      nodePort: ${K8S_NODEPORT}
