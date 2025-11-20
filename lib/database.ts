@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import type { Table } from "./types";
 import type { AccessControl } from "./validation";
+import { Env } from "@/config";
 
 /**
  * Get schemas in the database (excluding system schemas)
@@ -136,6 +137,10 @@ export async function generateAuthFunction(
       return;
     }
 
+    if(!Env.PGRST_JWT_CERT_URL || !Env.PGRST_JWT_CLAIM_KEY) {
+      throw new Error("Cannot authenticate without certificate URL or JWT claim key")
+    }
+
     //
     // Build user restriction SQL if needed
     //
@@ -171,10 +176,10 @@ BEGIN
     RAISE EXCEPTION 'Missing JWT claims';
   END IF;
 
-  username := claims->>'preferred_username';
+  username := claims->>'${Env.PGRST_JWT_CLAIM_KEY}';
 
   IF username IS NULL THEN
-    RAISE EXCEPTION 'Missing preferred_username claim in JWT';
+    RAISE EXCEPTION 'Missing ${Env.PGRST_JWT_CLAIM_KEY} claim in JWT';
   END IF;
 
   -- Only "specific" mode restricts which usernames are allowed

@@ -19,7 +19,7 @@ Choose how your generated API should authenticate:
 - **`authenticated`** &mdash; Requires any valid OIDC JWT.
 - **`specific`** &mdash; Restricted to only selected OIDC users.
 
-For authenticated modes, the application uses the JWT claim: **`preferred_username`**.
+For authenticated modes, the application uses the JWT claim: **`PGRST_JWT_CLAIM_KEY`**.
 
 > **Note:** To enable authenticated modes, the `PGRST_JWT_SECRET` environment variable must contain a **JWKS** (e.g., the public key set from an identity provider like Keycloak).
 >
@@ -52,10 +52,11 @@ http://<CLUSTER_ACCESS_URI>:<nodePort>
 
 Configure the UI application using the following environment variables:
 
-| Variable                 | Description                                                     | Example                                        |
-| :----------------------- | :-------------------------------------------------------------- | :--------------------------------------------- |
-| **`PGRST_IMAGE`**        | PostgREST Docker image used for deployments.                    | `postgrest/postgrest`                          |
-| **`PGRST_JWT_SECRET`**   | JWKS for JWT validation.                                        | `{"keys":[{"alg":"RS256","e":"AQAB","kid":"...` |
-| **`K8S_NAMESPACE`**      | Kubernetes namespace where PostgREST will be deployed.          | `default`                                      |
-| **`K8S_APP_PREFIX`**     | Prefix used when naming the PostgREST deployments and services. | `self-postgrest`                               |
-| **`CLUSTER_ACCESS_URI`** | Base URL used to generate the final API URL (NodePort access).  | `http://111.11.11.11`                          |
+| Variable                  | Description                                                     | Example                                         |
+| :------------------------ | :-------------------------------------------------------------- | :---------------------------------------------- |
+| **`PGRST_IMAGE`**         | PostgREST Docker image used for deployments.                    | `postgrest/postgrest`                           |
+| **`PGRST_JWT_SECRET`**    | JWKS for JWT validation.                                        | `{"keys":[{"alg":"RS256","e":"AQAB","kid":"...` |
+| **`PGRST_JWT_CLAIM_KEY`** | JWT key for identifying the user.                               | `email` |
+| **`K8S_NAMESPACE`**       | Kubernetes namespace where PostgREST will be deployed.          | `default`                                       |
+| **`K8S_APP_PREFIX`**      | Prefix used when naming the PostgREST deployments and services. | `self-postgrest`                                |
+| **`CLUSTER_ACCESS_URI`**  | Base URL used to generate the final API URL (NodePort access).  | `http://111.11.11.11`                           |

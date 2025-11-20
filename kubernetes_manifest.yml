@@ -3,8 +3,7 @@ kind: Deployment
 metadata:
   name: ${APPLICATION_NAME}
   annotations:
-    users: ${GITLAB_USER_EMAIL}
-    repository.url: ${CI_PROJECT_URL}
+    users: [kevin_fabel@jtekt.co.jp]
 spec:
   replicas: 1
   selector:
@@ -15,12 +14,21 @@ spec:
       labels:
         app: ${APPLICATION_NAME}
     spec:
+      serviceAccountName: self-postgrest-sa
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED}
-          envFrom:
-            - secretRef:
-                name: ${K8S_ENV_SECRET_NAME}
+          env:
+            - name: PGRST_IMAGE
+              value: postgrest/postgrest
+            - name: PGRST_JWT_CERT_URL
+              value: http://10.115.1.100:30416/realms/jtekt/protocol/openid-connect/certs
+            - name: PGRST_JWT_CLAIM_KEY
+              value: email
+            - name: K8S_NAMESPACE
+              value: self-postgrest
+            - name: CLUSTER_ACCESS_URI
+              value: http://172.16.98.151
           resources:
             requests:
               memory: "128Mi"
@@ -42,5 +50,31 @@ spec:
   selector:
     app: ${APPLICATION_NAME}
   ports:
-    - port: ${PORT}
-      nodePort: ${K8S_NODEPORT}
+    - port: 3000
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: self-postgrest-role
+  namespace: fabel
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]
+  - apiGroups: [""] # "" indicates the core API group
+    resources: ["services"]
+    verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: self-postgrest-rolebinding
+  namespace: fabel
+subjects:
+  - kind: ServiceAccount
+    name: self-postgrest-sa
+    namespace: fabel
+roleRef:
+  kind: Role
+  name: self-postgrest-role
+  apiGroup: rbac.authorization.k8s.io

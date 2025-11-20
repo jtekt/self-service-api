@@ -1,9 +1,5 @@
 import * as k8s from "@kubernetes/client-node";
-import {
-  CLUSTER_ACCESS_URI,
-  PGRST_IMAGE,
-  PGRST_JWT_SECRET,
-} from "@/config";
+import { Env } from "@/config";
 import { getDbUsername } from "./uri";
 import { AccessControl } from "./validation";
 
@@ -28,8 +24,8 @@ export async function createDeployment(
 
   const username_role = getDbUsername(dbUri);
 
-  if(!username_role) {
-    throw new Error("Error finding the database username")
+  if (!username_role) {
+    throw new Error("Error finding the database username");
   }
 
   const deployment: k8s.V1Deployment = {
@@ -56,7 +52,7 @@ export async function createDeployment(
           containers: [
             {
               name: "postgrest",
-              image: PGRST_IMAGE,
+              image: Env.PGRST_IMAGE,
               resources: {
                 requests: {
                   memory: "128Mi",
@@ -81,8 +77,20 @@ export async function createDeployment(
   };
 
   if (accessControl.type !== "public") {
+    if(!Env.PGRST_JWT_CERT_URL) {
+      throw new Error("Cannot authenticate without certificate URL")
+    }
+
+    const cert = await fetch(Env.PGRST_JWT_CERT_URL);
+
+    if (!cert.ok) {
+      throw new Error("Error fetching JWT certificates");
+    }
+
+    const certContents = await cert.text();
+
     deployment.spec?.template.spec?.containers[0].env?.push(
-      { name: "PGRST_JWT_SECRET", value: PGRST_JWT_SECRET },
+      { name: "PGRST_JWT_SECRET", value: certContents },
       { name: "PGRST_DB_PRE_REQUEST", value: `${schema}.check_user` },
     );
   }
@@ -155,7 +163,7 @@ export async function createService(
 }
 
 export async function getNodeIp(): Promise<string | undefined> {
-  if (CLUSTER_ACCESS_URI) return CLUSTER_ACCESS_URI;
+  if (Env.CLUSTER_ACCESS_URI) return Env.CLUSTER_ACCESS_URI;
 
   const { items } = await k8sApi.listNode();
   const node = items[0];

@@ -6,7 +6,7 @@ import {
   K8sDeploymentParams,
   waitForDeploymentReady,
 } from "@/lib/k8s";
-import { K8S_APP_PREFIX, K8S_NAMESPACE } from "@/config";
+import { Env } from "@/config";
 import { generateAuthFunction } from "@/lib/database";
 import z from "zod";
 import { AccessControlSchema, PostgresUriSchema } from "@/lib/validation";
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
         const dbName = pathname || "default";
 
         const params: K8sDeploymentParams = {
-          namespace: K8S_NAMESPACE,
-          name: `${K8S_APP_PREFIX}-${dbName}`,
+          namespace: Env.K8S_NAMESPACE,
+          name: dbName,
           dbUri: uri,
           schema,
           accessControl,
