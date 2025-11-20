@@ -77,11 +77,11 @@ export async function createDeployment(
   };
 
   if (accessControl.type !== "public") {
-    if(!Env.PGRST_JWT_CERT_URL) {
+    if(!Env.NEXT_PUBLIC_PGRST_JWT_CERT_URL) {
       throw new Error("Cannot authenticate without certificate URL")
     }
 
-    const cert = await fetch(Env.PGRST_JWT_CERT_URL);
+    const cert = await fetch(Env.NEXT_PUBLIC_PGRST_JWT_CERT_URL);
 
     if (!cert.ok) {
       throw new Error("Error fetching JWT certificates");

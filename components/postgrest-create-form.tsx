@@ -37,7 +37,9 @@ export default function PostgRESTCreate() {
   const [tablesLoading, setTablesLoading] = useState(false);
 
   // Access control
-  const [accessType, setAccessType] = useState<AccessControl["type"]>("public");
+  const [accessType, setAccessType] = useState<AccessControl["type"]>(
+    process.env.PGRST_JWT_CERT_URL ? "authenticated" : "public",
+  );
   const [specificUsers, setSpecificUsers] = useState<AccessControl["users"]>(
     [],
   );
@@ -175,6 +177,8 @@ export default function PostgRESTCreate() {
   const addSpecificUser = (e: FormEvent) => {
     e.preventDefault();
 
+    if (!process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY) return;
+
     const trimmed = newUserInput.trim();
     if (trimmed && !specificUsers.includes(trimmed)) {
       setSpecificUsers([...specificUsers, trimmed]);
@@ -310,59 +314,66 @@ export default function PostgRESTCreate() {
                     <SelectItem value="public">
                       Public – Anyone can use the API
                     </SelectItem>
-                    <SelectItem value="authenticated">
-                      Authenticated – Any logged-in Keycloak user
-                    </SelectItem>
-                    <SelectItem value="specific">
-                      Specific users only
-                    </SelectItem>
+                    {process.env.NEXT_PUBLIC_PGRST_JWT_CERT_URL && (
+                      <SelectItem value="authenticated">
+                        Authenticated – Any logged-in Keycloak user
+                      </SelectItem>
+                    )}
+                    {process.env.NEXT_PUBLIC_PGRST_JWT_CERT_URL &&
+                      process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY && (
+                        <SelectItem value="specific">
+                          Specific users only
+                        </SelectItem>
+                      )}
                   </SelectContent>
                 </Select>
               </div>
 
-              {accessType === "specific" && (
-                <div className="space-y-3">
-                  <form onSubmit={addSpecificUser} className="flex gap-2">
-                    <Input
-                      placeholder={`User identifier (${process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY})`}
-                      value={newUserInput}
-                      onChange={(e) => setNewUserInput(e.target.value)}
-                      disabled={deploying}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={!newUserInput.trim() || deploying}
-                    >
-                      Add
-                    </Button>
-                  </form>
+              {accessType === "specific" &&
+                process.env.NEXT_PUBLIC_PGRST_JWT_CERT_URL &&
+                process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY && (
+                  <div className="space-y-3">
+                    <form onSubmit={addSpecificUser} className="flex gap-2">
+                      <Input
+                        placeholder={`User identifier (${process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY})`}
+                        value={newUserInput}
+                        onChange={(e) => setNewUserInput(e.target.value)}
+                        disabled={deploying}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={!newUserInput.trim() || deploying}
+                      >
+                        Add
+                      </Button>
+                    </form>
 
-                  <div className="flex flex-wrap gap-2">
-                    {specificUsers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No users added yet
-                      </p>
-                    ) : (
-                      specificUsers.map((user) => (
-                        <div
-                          key={user}
-                          className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
-                        >
-                          <span className="text-sm">{user}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeSpecificUser(user)}
-                            className="rounded-full p-0.5 hover:bg-primary/20"
-                            disabled={deploying}
+                    <div className="flex flex-wrap gap-2">
+                      {specificUsers.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No users added yet
+                        </p>
+                      ) : (
+                        specificUsers.map((user) => (
+                          <div
+                            key={user}
+                            className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
                           >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))
-                    )}
+                            <span className="text-sm">{user}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeSpecificUser(user)}
+                              className="rounded-full p-0.5 hover:bg-primary/20"
+                              disabled={deploying}
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           )}
           {selectedSchema && tables.length > 0 && (
