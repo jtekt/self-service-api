@@ -1,3 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${K8S_SERVICE_ACCOUNT}
+  namespace: ${K8S_NAMESPACE}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,7 +20,7 @@ spec:
       labels:
         app: ${APPLICATION_NAME}
     spec:
-      serviceAccountName: self-postgrest-sa
+      serviceAccountName: ${K8S_SERVICE_ACCOUNT}
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED}
@@ -72,7 +78,7 @@ metadata:
   namespace: ${K8S_NAMESPACE}
 subjects:
   - kind: ServiceAccount
-    name: self-postgrest-sa
+    name: ${K8S_SERVICE_ACCOUNT}
     namespace: ${K8S_NAMESPACE}
 roleRef:
   kind: Role
