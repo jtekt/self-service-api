@@ -41,8 +41,9 @@ export default function PostgRESTCreate({
   const [tablesLoading, setTablesLoading] = useState(false);
 
   // Access control
-  const [accessType, setAccessType] =
-    useState<AccessControl["type"]>("authenticated");
+  const [accessType, setAccessType] = useState<AccessControl["type"]>(
+    isKeycloak ? "authenticated" : "public",
+  );
   const [specificUsers, setSpecificUsers] = useState<AccessControl["users"]>(
     [],
   );
@@ -206,7 +207,7 @@ export default function PostgRESTCreate({
           return;
         }
         setTables(res.tables);
-        setAccessType(res.accessControl.type);
+        setAccessType(isKeycloak ? res.accessControl.type : "public");
         setSpecificUsers(res.accessControl.users);
       } catch (err: any) {
         toast.error(err.message || "Failed to fetch tables");
