@@ -29,7 +29,7 @@ spec:
               value: postgrest/postgrest
             - name: PGRST_JWT_CERT_URL
               value: http://10.115.1.100:30416/realms/jtekt/protocol/openid-connect/certs
-            - name: PGRST_JWT_CLAIM_KEY
+            - name: NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY
               value: email
             - name: K8S_NAMESPACE
               value: ${K8S_NAMESPACE}

@@ -324,7 +324,7 @@ export default function PostgRESTCreate() {
                 <div className="space-y-3">
                   <form onSubmit={addSpecificUser} className="flex gap-2">
                     <Input
-                      placeholder="Employee number (00 + employee number)"
+                      placeholder={`User identifier (${process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY})`}
                       value={newUserInput}
                       onChange={(e) => setNewUserInput(e.target.value)}
                       disabled={deploying}
