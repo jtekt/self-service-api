@@ -43,7 +43,7 @@ spec:
               memory: "512Mi"
               cpu: "600m"
       imagePullSecrets:
-        - name: ${K8S_IMAGE_PULL_SECRET_NAME}
+        - name: ${K8S_ECR_SECRET_NAME}
 ---
 apiVersion: v1
 kind: Service
