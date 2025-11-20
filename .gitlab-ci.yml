@@ -5,9 +5,10 @@ stages:
 variables:
   APPLICATION_NAME: self-postgrest
   CONTAINER_IMAGE_NAME: ${K8S_NAMESPACE}/${APPLICATION_NAME}
-  CONTAINER_IMAGE: ${CONTAINER_REGISTRY_URL}/${CONTAINER_IMAGE_NAME}
+  CONTAINER_IMAGE: ${AWS_ECR_URL}/${CONTAINER_IMAGE_NAME}
   CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
   K8S_IMAGE_PULL_SECRET_NAME: ecr-credentials
+  K8S_NAMESPACE: fabel
 
 build-job:
   stage: build
@@ -34,3 +35,7 @@ deploy-job:
   script:
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
 
+environment:
+    name: production
+    kubernetes:
+      namespace: ${K8S_NAMESPACE}
