@@ -32,7 +32,7 @@ spec:
             - name: PGRST_JWT_CLAIM_KEY
               value: email
             - name: K8S_NAMESPACE
-              value: self-postgrest
+              value: ${K8S_NAMESPACE}
             - name: CLUSTER_ACCESS_URI
               value: http://172.16.98.151
           resources:
