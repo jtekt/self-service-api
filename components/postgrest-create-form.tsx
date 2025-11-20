@@ -22,11 +22,7 @@ import { TablesViewer } from "./table-viewer";
 
 type AccessType = "public" | "authenticated" | "specific";
 
-export default function PostgRESTCreate({
-  isKeycloak = false,
-}: {
-  isKeycloak: boolean;
-}) {
+export default function PostgRESTCreate() {
   // Database connection
   const [dbUri, setDbUri] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,9 +37,7 @@ export default function PostgRESTCreate({
   const [tablesLoading, setTablesLoading] = useState(false);
 
   // Access control
-  const [accessType, setAccessType] = useState<AccessControl["type"]>(
-    isKeycloak ? "authenticated" : "public",
-  );
+  const [accessType, setAccessType] = useState<AccessControl["type"]>("public");
   const [specificUsers, setSpecificUsers] = useState<AccessControl["users"]>(
     [],
   );
@@ -207,7 +201,7 @@ export default function PostgRESTCreate({
           return;
         }
         setTables(res.tables);
-        setAccessType(isKeycloak ? res.accessControl.type : "public");
+        setAccessType(res.accessControl.type);
         setSpecificUsers(res.accessControl.users);
       } catch (err: any) {
         toast.error(err.message || "Failed to fetch tables");
@@ -316,16 +310,12 @@ export default function PostgRESTCreate({
                     <SelectItem value="public">
                       Public – Anyone can use the API
                     </SelectItem>
-                    {isKeycloak && (
-                      <>
-                        <SelectItem value="authenticated">
-                          Authenticated – Any logged-in Keycloak user
-                        </SelectItem>
-                        <SelectItem value="specific">
-                          Specific users only
-                        </SelectItem>
-                      </>
-                    )}
+                    <SelectItem value="authenticated">
+                      Authenticated – Any logged-in Keycloak user
+                    </SelectItem>
+                    <SelectItem value="specific">
+                      Specific users only
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
