@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: ${APPLICATION_NAME}
   annotations:
-    users: [kevin_fabel@jtekt.co.jp]
+    users: "kevin_fabel@jtekt.co.jp"
 spec:
   replicas: 1
   selector:
