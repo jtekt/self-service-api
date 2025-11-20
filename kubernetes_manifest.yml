@@ -56,7 +56,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: self-postgrest-role
-  namespace: fabel
+  namespace: ${K8S_NAMESPACE}
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
@@ -69,11 +69,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: self-postgrest-rolebinding
-  namespace: fabel
+  namespace: ${K8S_NAMESPACE}
 subjects:
   - kind: ServiceAccount
     name: self-postgrest-sa
-    namespace: fabel
+    namespace: ${K8S_NAMESPACE}
 roleRef:
   kind: Role
   name: self-postgrest-role
