@@ -5,8 +5,8 @@ import { HelpLink } from "@/components/help-link";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ModeToggle } from "@/components/toggle-mode";
-import "./globals.css";
 import Link from "next/link";
+import "./globals.css";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -14,8 +14,8 @@ const fontSans = FontSans({
 });
 
 export const metadata: Metadata = {
-  title: "Self-PostgREST",
-  description: "Deploy a PostgREST easily",
+  title: "Self-service API",
+  description: "Deploy a REST API from a postgresql database easily",
 };
 
 export default function RootLayout({
@@ -39,7 +39,7 @@ export default function RootLayout({
         >
           <header className="fixed top-0 right-0 left-0 z-50 flex h-12 items-center gap-2 border-b bg-background px-4">
             <Link href="/" className="mr-auto text-2xl">
-              Self-PostgREST
+              Self-service API
             </Link>
             <ModeToggle />
             <HelpLink />
@@ -48,7 +48,7 @@ export default function RootLayout({
             {children}
           </main>
           <footer className="border-t p-4 text-center text-sm">
-            Self PostgREST | JTEKT Corporation
+            Self-service API | JTEKT Corporation
           </footer>
           <Toaster richColors />
         </ThemeProvider>

@@ -1,4 +1,4 @@
-# Self-PostgREST UI
+# Self-service API
 
 A lightweight UI to deploy **PostgREST** services on a **Kubernetes cluster**.
 
@@ -52,11 +52,12 @@ http://<CLUSTER_ACCESS_URI>:<nodePort>
 
 Configure the UI application using the following environment variables:
 
-| Variable                              | Description                                                     | Example                                                      |
-| :------------------------------------ | :-------------------------------------------------------------- | :----------------------------------------------------------- |
-| **`PGRST_IMAGE`**                     | PostgREST Docker image used for deployments.                    | `postgrest/postgrest`                                        |
+| Variable                  | Description                                                     | Example                                                      |
+| :------------------------ | :-------------------------------------------------------------- | :----------------------------------------------------------- |
+| **`PGRST_IMAGE`**         | PostgREST Docker image used for deployments.                    | `postgrest/postgrest`                                        |
 | **`PGRST_JWT_CERT_URL`**  | URL for the certificates.                                       | `http://keycloak/realms/realm/protocol/openid-connect/certs` |
 | **`PGRST_JWT_CLAIM_KEY`** | JWT key for identifying the user.                               | `email`                                                      |
-| **`K8S_NAMESPACE`**                   | Kubernetes namespace where PostgREST will be deployed.          | `default`                                                    |
-| **`K8S_APP_PREFIX`**                  | Prefix used when naming the PostgREST deployments and services. | `api`                                                        |
-| **`CLUSTER_ACCESS_URI`**              | Base URL used to generate the final API URL (NodePort access).  | `http://111.11.11.11`                                        |
+| **`K8S_NAMESPACE`**       | Kubernetes namespace where PostgREST will be deployed.          | `default`                                                    |
+| **`K8S_APP_PREFIX`**      | Prefix used when naming the PostgREST deployments and services. | `api`                                                        |
+| **`CLUSTER_ACCESS_URI`**  | Base URL used to generate the final API URL (NodePort access).  | `http://111.11.11.11`                                        |
+| **`HELP_URL`**            | Url that user can go to see more information about the app.     | `http://111.11.11.11`                                        |

@@ -63,7 +63,7 @@ spec:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: self-postgrest-role
+  name: self-service-api-role
   namespace: ${K8S_APPS_NAMESPACE}
 rules:
   - apiGroups: ["apps"]
@@ -76,7 +76,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: self-postgrest-rolebinding
+  name: self-service-api-rolebinding
   namespace: ${K8S_APPS_NAMESPACE}
 subjects:
   - kind: ServiceAccount
@@ -84,5 +84,5 @@ subjects:
     namespace: ${K8S_NAMESPACE}
 roleRef:
   kind: Role
-  name: self-postgrest-role
+  name: self-service-api-role
   apiGroup: rbac.authorization.k8s.io

@@ -1,5 +1,5 @@
 {
-  "name": "self-postgrest",
+  "name": "self-service-api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
