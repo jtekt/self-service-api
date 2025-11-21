@@ -26,14 +26,14 @@ spec:
           env:
             - name: PGRST_IMAGE
               value: postgrest/postgrest
-            - name: NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY
+            - name: NEXT_PUBLIC_PGRST_JWT_CERT_URL
               value: http://10.115.1.100:30416/realms/jtekt/protocol/openid-connect/certs
             - name: NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY
               value: email
             - name: K8S_NAMESPACE
               value: ${K8S_NAMESPACE}
-            - name: NAME_PREFIX
-              value: self
+            - name: K8S_APP_PREFIX
+              value: api
             - name: CLUSTER_ACCESS_URI
               value: http://172.16.98.151
           resources:

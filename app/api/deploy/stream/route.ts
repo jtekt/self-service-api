@@ -42,9 +42,12 @@ export async function POST(request: NextRequest) {
         const pathname = urlObj.pathname.replace(/^\//, "");
         const dbName = pathname || "default";
 
+        // Add prefix in name if exist
+        const name = (Env.K8S_APP_PREFIX ? Env.K8S_APP_PREFIX + "-" : "") + dbName;
+
         const params: K8sDeploymentParams = {
           namespace: Env.K8S_NAMESPACE,
-          name: dbName,
+          name,
           dbUri: uri,
           schema,
           accessControl,
