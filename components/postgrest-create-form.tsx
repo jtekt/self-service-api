@@ -22,7 +22,12 @@ import { TablesViewer } from "./table-viewer";
 
 type AccessType = "public" | "authenticated" | "specific";
 
-export default function PostgRESTCreate() {
+type Props = {
+  hasCertUrl: boolean;
+  hasClaimKey: boolean;
+};
+
+export default function PostgRESTCreate({ hasCertUrl, hasClaimKey }: Props) {
   // Database connection
   const [dbUri, setDbUri] = useState("");
   const [loading, setLoading] = useState(false);
@@ -177,7 +182,7 @@ export default function PostgRESTCreate() {
   const addSpecificUser = (e: FormEvent) => {
     e.preventDefault();
 
-    if (!process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY) return;
+    if (!hasClaimKey) return;
 
     const trimmed = newUserInput.trim();
     if (trimmed && !specificUsers.includes(trimmed)) {
@@ -314,13 +319,13 @@ export default function PostgRESTCreate() {
                     <SelectItem value="public">
                       Public – Anyone can use the API
                     </SelectItem>
-                    {process.env.NEXT_PUBLIC_PGRST_JWT_CERT_URL && (
+                    {hasCertUrl && (
                       <SelectItem value="authenticated">
                         Authenticated – Any logged-in Keycloak user
                       </SelectItem>
                     )}
-                    {process.env.NEXT_PUBLIC_PGRST_JWT_CERT_URL &&
-                      process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY && (
+                    {hasCertUrl &&
+                      hasClaimKey && (
                         <SelectItem value="specific">
                           Specific users only
                         </SelectItem>
@@ -330,12 +335,12 @@ export default function PostgRESTCreate() {
               </div>
 
               {accessType === "specific" &&
-                process.env.NEXT_PUBLIC_PGRST_JWT_CERT_URL &&
-                process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY && (
+                hasCertUrl &&
+                hasClaimKey && (
                   <div className="space-y-3">
                     <form onSubmit={addSpecificUser} className="flex gap-2">
                       <Input
-                        placeholder={`User identifier (${process.env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY})`}
+                        placeholder={`User identifier (${hasClaimKey})`}
                         value={newUserInput}
                         onChange={(e) => setNewUserInput(e.target.value)}
                         disabled={deploying}

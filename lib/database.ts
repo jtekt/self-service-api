@@ -137,7 +137,7 @@ export async function generateAuthFunction(
       return;
     }
 
-    if(!Env.NEXT_PUBLIC_PGRST_JWT_CERT_URL) {
+    if(!Env.PGRST_JWT_CERT_URL) {
       throw new Error("Cannot authenticate without certificate URL")
     }
 
@@ -147,7 +147,7 @@ export async function generateAuthFunction(
     let userCheckSQL = "";
 
     if (accessControl.type === "specific") {
-      if(!Env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY) {
+      if(!Env.PGRST_JWT_CLAIM_KEY) {
         throw new Error("Cannot authenticate specific users without the claim key")
       }
 
@@ -180,10 +180,10 @@ BEGIN
     RAISE EXCEPTION 'Missing JWT claims';
   END IF;
 
-  username := claims->>'${Env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY}';
+  username := claims->>'${Env.PGRST_JWT_CLAIM_KEY}';
 
   IF username IS NULL THEN
-    RAISE EXCEPTION 'Missing ${Env.NEXT_PUBLIC_PGRST_JWT_CLAIM_KEY} claim in JWT';
+    RAISE EXCEPTION 'Missing ${Env.PGRST_JWT_CLAIM_KEY} claim in JWT';
   END IF;
 
   -- Only "specific" mode restricts which usernames are allowed

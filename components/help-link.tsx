@@ -1,17 +1,18 @@
 import { Button } from "@/components/ui/button";
+import { Env } from "@/config";
 import { HelpCircle } from "lucide-react";
 import Link from "next/link";
 
 export function HelpLink() {
-  const helpUri = process.env.NEXT_PUBLIC_HELP_URL;
+  const helpUri = Env.HELP_URL;
 
   if (!helpUri) return null;
 
   return (
-    <Button variant="ghost" size="icon" className="size-8">
-      <Link href={helpUri}>
+    <Link href={helpUri}>
+      <Button variant="outline" size="icon">
         <HelpCircle />
-      </Link>
-    </Button>
+      </Button>
+    </Link>
   );
 }

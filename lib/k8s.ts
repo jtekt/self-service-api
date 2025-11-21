@@ -68,6 +68,7 @@ export async function createDeployment(
                 { name: "PGRST_DB_ANON_ROLE", value: username_role },
                 { name: "PGRST_SCHEMAS", value: schema },
                 { name: "PGRST_SERVER_PORT", value: "3000" },
+                { name: "PGRST_OPENAPI_MODE", value: "ignore-privileges" },
               ],
             },
           ],
@@ -77,11 +78,11 @@ export async function createDeployment(
   };
 
   if (accessControl.type !== "public") {
-    if(!Env.NEXT_PUBLIC_PGRST_JWT_CERT_URL) {
-      throw new Error("Cannot authenticate without certificate URL")
+    if (!Env.PGRST_JWT_CERT_URL) {
+      throw new Error("Cannot authenticate without certificate URL");
     }
 
-    const cert = await fetch(Env.NEXT_PUBLIC_PGRST_JWT_CERT_URL);
+    const cert = await fetch(Env.PGRST_JWT_CERT_URL);
 
     if (!cert.ok) {
       throw new Error("Error fetching JWT certificates");
