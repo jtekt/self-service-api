@@ -156,9 +156,10 @@ export async function generateAuthFunction(
         .join(", ");
 
       userCheckSQL = `
-        IF username NOT IN (${safeUsers}) THEN
-          RAISE EXCEPTION 'User % is not allowed', username;
-        END IF;
+  -- "specific" mode
+  IF username NOT IN (${safeUsers}) THEN
+    RAISE EXCEPTION 'User % is not allowed', username;
+  END IF;
       `;
     }
 
@@ -172,7 +173,16 @@ CREATE OR REPLACE FUNCTION ${schema}.check_user() RETURNS void AS $$
 DECLARE
   claims json;
   username text;
+  path text;
 BEGIN
+  -- GET THE REQUEST PATH
+  path := current_setting('request.path', true);
+
+  -- Allow unrestricted access ONLY to "/"
+  IF path = '/' THEN
+    RETURN;
+  END IF;
+  
   -- JWT claims
   claims := current_setting('request.jwt.claims', true)::json;
 
@@ -186,7 +196,6 @@ BEGIN
     RAISE EXCEPTION 'Missing ${Env.PGRST_JWT_CLAIM_KEY} claim in JWT';
   END IF;
 
-  -- Only "specific" mode restricts which usernames are allowed
   ${userCheckSQL}
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
