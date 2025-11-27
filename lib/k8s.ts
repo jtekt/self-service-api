@@ -1,7 +1,7 @@
 import * as k8s from "@kubernetes/client-node";
 import { Env } from "@/config";
 import { getDbUsername } from "./uri";
-import { AccessControl } from "./validation";
+import type { DeploymentParams } from "@/app/api/deploy/stream/route";
 
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
@@ -9,16 +9,8 @@ kc.loadFromDefault();
 const k8sApi = kc.makeApiClient(k8s.CoreV1Api);
 const appsApi = kc.makeApiClient(k8s.AppsV1Api);
 
-export interface K8sDeploymentParams {
-  namespace: string;
-  name: string;
-  dbUri: string;
-  schema: string;
-  accessControl: AccessControl;
-}
-
 export async function createDeployment(
-  params: K8sDeploymentParams,
+  params: DeploymentParams,
 ): Promise<void> {
   const { namespace, name, dbUri, schema, accessControl } = params;
 
@@ -93,6 +85,7 @@ export async function createDeployment(
     deployment.spec?.template.spec?.containers[0].env?.push(
       { name: "PGRST_JWT_SECRET", value: certContents },
       { name: "PGRST_DB_PRE_REQUEST", value: `${schema}.check_user` },
+      { name: "PGRST_OPENAPI_SECURITY_ACTIVE", value: "true" },
     );
   }
 
@@ -114,7 +107,7 @@ export async function createDeployment(
 }
 
 export async function createService(
-  params: K8sDeploymentParams,
+  params: DeploymentParams,
 ): Promise<number | undefined> {
   const { namespace, name } = params;
 

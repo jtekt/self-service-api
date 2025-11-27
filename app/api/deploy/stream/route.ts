@@ -3,13 +3,20 @@ import {
   createDeployment,
   createService,
   getNodeIp,
-  K8sDeploymentParams,
   waitForDeploymentReady,
 } from "@/lib/k8s";
 import { Env } from "@/config";
-import { generateAuthFunction } from "@/lib/database";
+import { generateAuthFunction, generateDocsFunction } from "@/lib/database";
 import z from "zod";
-import { AccessControlSchema, PostgresUriSchema } from "@/lib/validation";
+import { AccessControl, AccessControlSchema, PostgresUriSchema } from "@/lib/validation";
+
+export interface DeploymentParams {
+  namespace: string;
+  name: string;
+  dbUri: string;
+  schema: string;
+  accessControl: AccessControl;
+}
 
 const BodySchema = z.object({
   uri: PostgresUriSchema,
@@ -45,7 +52,7 @@ export async function POST(request: NextRequest) {
         // Add prefix in name if exist
         const name = (Env.K8S_APP_PREFIX ? Env.K8S_APP_PREFIX + "-" : "") + dbName;
 
-        const params: K8sDeploymentParams = {
+        const params: DeploymentParams = {
           namespace: Env.K8S_NAMESPACE,
           name,
           dbUri: uri,
@@ -55,17 +62,21 @@ export async function POST(request: NextRequest) {
 
         // STEP 1
         sendJson({ type: "progress", message: "Creating Database access..." });
-        await generateAuthFunction(params.dbUri, params.accessControl);
+        await generateAuthFunction(params);
 
         // STEP 2
+        sendJson({ type: "progress", message: "Creating API docs..." });
+        await generateDocsFunction(params);
+
+        // STEP 3
         sendJson({ type: "progress", message: "Creating Deployment..." });
         await createDeployment(params);
 
-        // STEP 3
+        // STEP 4
         sendJson({ type: "progress", message: "Creating Service..." });
         const nodePort = await createService(params);
 
-        // STEP 4
+        // STEP 5
         sendJson({
           type: "progress",
           message: "Waiting for API to become Ready...",

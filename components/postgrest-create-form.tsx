@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { CheckIcon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  EyeIcon,
+  EyeOffIcon,
+  XIcon,
+} from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Table } from "@/lib/types";
@@ -24,10 +29,10 @@ type AccessType = "public" | "authenticated" | "specific";
 
 type Props = {
   hasCertUrl: boolean;
-  hasClaimKey: boolean;
+  claimKey: string | undefined;
 };
 
-export default function PostgRESTCreate({ hasCertUrl, hasClaimKey }: Props) {
+export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
   // Database connection
   const [dbUri, setDbUri] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,6 +54,7 @@ export default function PostgRESTCreate({ hasCertUrl, hasClaimKey }: Props) {
     [],
   );
   const [newUserInput, setNewUserInput] = useState("");
+  const [showPassword, setShowPassword] = useState(true);
 
   // Deployment
   const [deploying, setDeploying] = useState(false);
@@ -182,7 +188,7 @@ export default function PostgRESTCreate({ hasCertUrl, hasClaimKey }: Props) {
   const addSpecificUser = (e: FormEvent) => {
     e.preventDefault();
 
-    if (!hasClaimKey) return;
+    if (!claimKey) return;
 
     const trimmed = newUserInput.trim();
     if (trimmed && !specificUsers.includes(trimmed)) {
@@ -240,16 +246,29 @@ export default function PostgRESTCreate({ hasCertUrl, hasClaimKey }: Props) {
           <Field>
             <FieldLabel htmlFor="uri">PostgreSQL Connection URI</FieldLabel>
             <div className="flex gap-3">
-              <Input
-                id="uri"
-                placeholder="postgresql://user:password@host:5432/dbname"
-                value={dbUri}
-                onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                  setDbUri(e.target.value)
-                }
-                disabled={loading || deploying}
-                className="flex-1"
-              />
+              <div className="relative flex-1">
+                <Input
+                  id="uri"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="postgresql://user:password@host:5432/dbname"
+                  value={dbUri}
+                  onChange={(e) => setDbUri(e.target.value)}
+                  disabled={loading || deploying}
+                  className="pr-10"
+                  onPaste={() => setShowPassword(false)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute top-1/2 right-2.5 -translate-y-1/2"
+                >
+                  {showPassword ? (
+                    <EyeIcon className="h-4 w-4" />
+                  ) : (
+                    <EyeOffIcon className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               <Button
                 type="submit"
                 disabled={!dbUri || loading || deploying}
@@ -324,61 +343,58 @@ export default function PostgRESTCreate({ hasCertUrl, hasClaimKey }: Props) {
                         Authenticated – Any logged-in Keycloak user
                       </SelectItem>
                     )}
-                    {hasCertUrl &&
-                      hasClaimKey && (
-                        <SelectItem value="specific">
-                          Specific users only
-                        </SelectItem>
-                      )}
+                    {hasCertUrl && claimKey && (
+                      <SelectItem value="specific">
+                        Specific users only
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
-              {accessType === "specific" &&
-                hasCertUrl &&
-                hasClaimKey && (
-                  <div className="space-y-3">
-                    <form onSubmit={addSpecificUser} className="flex gap-2">
-                      <Input
-                        placeholder={`User identifier (${hasClaimKey})`}
-                        value={newUserInput}
-                        onChange={(e) => setNewUserInput(e.target.value)}
-                        disabled={deploying}
-                      />
-                      <Button
-                        type="submit"
-                        disabled={!newUserInput.trim() || deploying}
-                      >
-                        Add
-                      </Button>
-                    </form>
+              {accessType === "specific" && hasCertUrl && claimKey && (
+                <div className="space-y-3">
+                  <form onSubmit={addSpecificUser} className="flex gap-2">
+                    <Input
+                      placeholder={`User identifier (${claimKey})`}
+                      value={newUserInput}
+                      onChange={(e) => setNewUserInput(e.target.value)}
+                      disabled={deploying}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={!newUserInput.trim() || deploying}
+                    >
+                      Add
+                    </Button>
+                  </form>
 
-                    <div className="flex flex-wrap gap-2">
-                      {specificUsers.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No users added yet
-                        </p>
-                      ) : (
-                        specificUsers.map((user) => (
-                          <div
-                            key={user}
-                            className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
+                  <div className="flex flex-wrap gap-2">
+                    {specificUsers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No users added yet
+                      </p>
+                    ) : (
+                      specificUsers.map((user) => (
+                        <div
+                          key={user}
+                          className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
+                        >
+                          <span className="text-sm">{user}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeSpecificUser(user)}
+                            className="rounded-full p-0.5 hover:bg-primary/20"
+                            disabled={deploying}
                           >
-                            <span className="text-sm">{user}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeSpecificUser(user)}
-                              className="rounded-full p-0.5 hover:bg-primary/20"
-                              disabled={deploying}
-                            >
-                              <XIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
-                )}
+                </div>
+              )}
             </div>
           )}
           {selectedSchema && tables.length > 0 && (

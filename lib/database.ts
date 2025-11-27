@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import type { Table } from "./types";
 import type { AccessControl } from "./validation";
 import { Env } from "@/config";
+import type { DeploymentParams } from "@/app/api/deploy/stream/route";
 
 /**
  * Get schemas in the database (excluding system schemas)
@@ -114,31 +115,30 @@ export async function introspectSchema(
  *  - authenticated  → any valid OIDC user allowed
  *  - specific       → only listed users allowed
  */
-export async function generateAuthFunction(
-  uri: string,
-  accessControl: AccessControl,
-  schema: string = "public",
-) {
-  if (accessControl.type === "specific" && accessControl.users.length === 0) {
+export async function generateAuthFunction(params: DeploymentParams) {
+  if (
+    params.accessControl.type === "specific" &&
+    params.accessControl.users.length === 0
+  ) {
     throw new Error("Allowed Users cannot be empty");
   }
 
-  const pool = new Pool({ connectionString: uri });
+  const pool = new Pool({ connectionString: params.dbUri });
 
   try {
     //
     // PUBLIC MODE → remove the function entirely
     //
-    if (accessControl.type === "public") {
+    if (params.accessControl.type === "public") {
       const dropSql = `
-        DROP FUNCTION IF EXISTS ${schema}.check_user();
+        DROP FUNCTION IF EXISTS ${params.schema}.check_user();
       `;
       await pool.query(dropSql);
       return;
     }
 
-    if(!Env.PGRST_JWT_CERT_URL) {
-      throw new Error("Cannot authenticate without certificate URL")
+    if (!Env.PGRST_JWT_CERT_URL) {
+      throw new Error("Cannot authenticate without certificate URL");
     }
 
     //
@@ -146,12 +146,14 @@ export async function generateAuthFunction(
     //
     let userCheckSQL = "";
 
-    if (accessControl.type === "specific") {
-      if(!Env.PGRST_JWT_CLAIM_KEY) {
-        throw new Error("Cannot authenticate specific users without the claim key")
+    if (params.accessControl.type === "specific") {
+      if (!Env.PGRST_JWT_CLAIM_KEY) {
+        throw new Error(
+          "Cannot authenticate specific users without the claim key",
+        );
       }
 
-      const safeUsers = accessControl.users
+      const safeUsers = params.accessControl.users
         .map((u) => `'${u.replace(/'/g, "''")}'`)
         .join(", ");
 
@@ -167,9 +169,9 @@ export async function generateAuthFunction(
     // Shared function SQL for authenticated + specific
     //
     const sql = `
-CREATE SCHEMA IF NOT EXISTS ${schema};
+CREATE SCHEMA IF NOT EXISTS ${params.schema};
 
-CREATE OR REPLACE FUNCTION ${schema}.check_user() RETURNS void AS $$
+CREATE OR REPLACE FUNCTION ${params.schema}.check_user() RETURNS void AS $$
 DECLARE
   claims json;
   username text;
@@ -179,7 +181,7 @@ BEGIN
   path := current_setting('request.path', true);
 
   -- Allow unrestricted access ONLY to "/"
-  IF path = '/' THEN
+  IF path IN ('/', '/rpc/docs') THEN
     RETURN;
   END IF;
   
@@ -199,6 +201,74 @@ BEGIN
   ${userCheckSQL}
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+`;
+
+    await pool.query(sql);
+  } finally {
+    await pool.end();
+  }
+}
+
+/**
+ * Creates or replaces a PostgreSQL function that returns the ReDoc API docs page.
+ *
+ * Usage:
+ *   GET /rpc/docs
+ *   Accept: text/html
+ */
+export async function generateDocsFunction(params: DeploymentParams) {
+  const pool = new Pool({ connectionString: params.dbUri });
+
+  try {
+    const sql = `
+DO $$
+BEGIN
+    -- Check if domain exists using the internal typname
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'text/html'
+    ) THEN
+        CREATE DOMAIN "text/html" AS TEXT;
+    END IF;
+END
+$$;
+
+CREATE OR REPLACE FUNCTION ${params.schema}.docs()
+returns "text/html"
+AS $$
+  SELECT $html$
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="SwaggerUI" />
+  <title>SwaggerUI</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js" crossorigin></script>
+<script>
+  window.onload = async () => {
+    const response = await fetch(window.location.origin);
+    const spec = await response.json();
+
+    // Fix host and scheme dynamically for OpenAPI 2
+    spec.host = window.location.host; // only host:port, e.g., "172.16.98.151:30264"
+    spec.schemes = [window.location.protocol.replace(":", "")]; // ["http"] or ["https"]
+
+    window.ui = SwaggerUIBundle({
+      spec: spec,
+      dom_id: '#swagger-ui',
+    });
+  };
+</script>
+</body>
+</html>
+$html$;
+$$ LANGUAGE sql;
 `;
 
     await pool.query(sql);
