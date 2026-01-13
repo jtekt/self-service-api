@@ -9,6 +9,7 @@ import { Env } from "@/config";
 import { generateAuthFunction, generateDocsFunction } from "@/lib/database";
 import z from "zod";
 import { AccessControl, AccessControlSchema, PostgresUriSchema } from "@/lib/validation";
+import { toK8sName } from "@/utils/k8s";
 
 export interface DeploymentParams {
   namespace: string;
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
         const dbName = pathname || "default";
 
         // Add prefix in name if exist
-        const name = (Env.K8S_APP_PREFIX ? Env.K8S_APP_PREFIX + "-" : "") + dbName;
+        const name = toK8sName((Env.K8S_APP_PREFIX ? Env.K8S_APP_PREFIX + "-" : "") + dbName);
 
         const params: DeploymentParams = {
           namespace: Env.K8S_NAMESPACE,
