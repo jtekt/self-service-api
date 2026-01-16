@@ -31,11 +31,15 @@ spec:
               value: http://10.115.1.100:30416/realms/jtekt/protocol/openid-connect/certs
             - name: PGRST_JWT_CLAIM_KEY
               value: email
+            - name: DATABASE_NAME_PREFIX
+              value: api
             - name: K8S_NAMESPACE
               value: ${K8S_APPS_NAMESPACE}
-            - name: K8S_APP_PREFIX
-              value: api
-            - name: CLUSTER_ACCESS_URI
+            - name: DEPLOY_MODE
+              value: nodePort
+            - name: DEPLOY_PROTOCOL
+              value: http
+            - name: NODEPORT_EXTERNAL_ADDRESS
               value: http://172.16.98.151
           resources:
             requests:

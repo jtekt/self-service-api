@@ -12,14 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import {
-  CheckIcon,
-  EyeIcon,
-  EyeOffIcon,
-  XIcon,
-} from "lucide-react";
+import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
-import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Table } from "@/lib/types";
 import { fetchSchemaDetails, fetchSchemas } from "@/actions/database";
 import { AccessControl } from "@/lib/validation";
@@ -36,9 +31,10 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
   // Database connection
   const [dbUri, setDbUri] = useState("");
   const [loading, setLoading] = useState(false);
-  const [testResult, setTestResult] = useState<"success" | "error" | null>(
-    null,
-  );
+  const [testResult, setTestResult] = useState<{
+    status: "success" | "error";
+    message?: string;
+  } | null>(null);
 
   // Schema & tables
   const [schemas, setSchemas] = useState<string[]>([]);
@@ -81,7 +77,7 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
       const res = await fetchSchemas(dbUri);
 
       if (!res.success) {
-        setTestResult("error");
+        setTestResult({ status: "error", message: res.error });
         toast.error(res.error);
         return;
       }
@@ -96,11 +92,12 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
           availableSchemas.length === 1 ? availableSchemas[0] : "",
         );
         toast.success("Connection successful!");
-        setTestResult("success");
+        setTestResult({ status: "success" });
       }
     } catch (err: any) {
-      setTestResult("error");
-      toast.error(err.message || "Connection failed");
+      const message = err.message || "Connection failed";
+      setTestResult({ status: "error", message });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -230,6 +227,209 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     resetDeployment();
   }, [accessType]);
 
+  const renderSchema = () => {
+    return schemas.length === 1 ? (
+      <div className="space-y-2">
+        <FieldLabel>Schema</FieldLabel>
+        <div className="rounded-lg bg-muted p-3 font-medium">{schemas[0]}</div>
+      </div>
+    ) : (
+      <div className="space-y-2">
+        <FieldLabel>Select Schema</FieldLabel>
+        <Select
+          value={selectedSchema}
+          onValueChange={setSelectedSchema}
+          disabled={deploying}
+        >
+          <SelectTrigger className="min-w-44">
+            <SelectValue placeholder="Choose a schema" />
+          </SelectTrigger>
+          <SelectContent>
+            {schemas.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
+
+  const renderTables = () => {
+    // No schema yet selected
+    if (!selectedSchema) {
+      return;
+    }
+
+    // Tables loading
+    if (tablesLoading) {
+      return <TablesViewer tables={[]} tablesLoading={true} />;
+    }
+
+    // Selected schema has no tables
+    if (tables.length === 0) {
+      return (
+        <Alert variant="warning">
+          <AlertTitle>
+            No tables found in the{" "}
+            <strong className="text-lg font-bold">{selectedSchema}</strong>{" "}
+            schema.
+          </AlertTitle>
+        </Alert>
+      );
+    }
+
+    return (
+      <>
+        <TablesViewer tables={tables} tablesLoading={false} />
+
+        {/* Access Control */}
+        <div className="space-y-5 rounded-lg border bg-muted/30 p-5">
+          <div className="space-y-2">
+            <FieldLabel>API Access Control</FieldLabel>
+            <Select
+              value={accessType}
+              onValueChange={(v) => setAccessType(v as AccessType)}
+              disabled={deploying}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose access type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="public">
+                  Public – Anyone can use the API
+                </SelectItem>
+                {hasCertUrl && (
+                  <SelectItem value="authenticated">
+                    Authenticated – Any logged‑in Keycloak user
+                  </SelectItem>
+                )}
+                {hasCertUrl && claimKey && (
+                  <SelectItem value="specific">Specific users only</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Specific user list */}
+          {accessType === "specific" && hasCertUrl && claimKey && (
+            <div className="space-y-3">
+              <form onSubmit={addSpecificUser} className="flex gap-2">
+                <Input
+                  placeholder={`User identifier (${claimKey})`}
+                  value={newUserInput}
+                  onChange={(e) => setNewUserInput(e.target.value)}
+                  disabled={deploying}
+                />
+                <Button
+                  type="submit"
+                  disabled={!newUserInput.trim() || deploying}
+                >
+                  Add
+                </Button>
+              </form>
+
+              {specificUsers.length === 0 ? (
+                <Alert variant="warning">
+                  <AlertTitle>No users added yet.</AlertTitle>
+                </Alert>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {specificUsers.map((user) => (
+                    <div
+                      key={user}
+                      className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
+                    >
+                      <span className="text-sm">{user}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeSpecificUser(user)}
+                        className="rounded-full p-0.5 hover:bg-primary/20"
+                        disabled={deploying}
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Deployment feedback */}
+        {(deploying || deployError || deployResult) && (
+          <div className="space-y-5 rounded-lg border bg-muted/30 p-6">
+            <h2 className="text-2xl font-semibold">
+              {deploying
+                ? "Deploying your API..."
+                : deployError
+                  ? "Deployment Failed"
+                  : "Deployment Successful!"}
+            </h2>
+
+            {deploying && (
+              <div className="flex items-center gap-4 text-lg">
+                <Spinner className="h-6 w-6" />
+                <span>{currentProgress || "Initializing..."}</span>
+              </div>
+            )}
+
+            {deployError && (
+              <Alert variant="destructive">
+                <AlertTitle>{deployError}</AlertTitle>
+              </Alert>
+            )}
+
+            {deployResult && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
+                <div className="grid grid-cols-[150px_1fr] gap-x-3 gap-y-2">
+                  <div className="text-right font-medium text-gray-700 dark:text-gray-300">
+                    Base URL:
+                  </div>
+                  <a
+                    href={deployResult.apiUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-blue-600 underline"
+                  >
+                    {deployResult.apiUrl}
+                  </a>
+
+                  <div className="text-right font-medium text-gray-700 dark:text-gray-300">
+                    Documentation:
+                  </div>
+                  <a
+                    href={deployResult.apiUrl + "/rpc/docs"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="break-all text-blue-600 underline"
+                  >
+                    {deployResult.apiUrl + "/rpc/docs"}
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Deploy button */}
+        <div className="flex justify-center">
+          <Button
+            size="lg"
+            className="gap-3"
+            disabled={loading || deploying || tablesLoading}
+            onClick={handleDeploy}
+          >
+            {deploying ? <Spinner /> : null}
+            {deploying ? "Deploying..." : "Deploy REST API"}
+          </Button>
+        </div>
+      </>
+    );
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 py-8">
       <div className="text-center">
@@ -272,11 +472,13 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
               <Button
                 type="submit"
                 disabled={!dbUri || loading || deploying}
-                variant={testResult === "success" ? "outline" : "default"}
+                variant={
+                  testResult?.status === "success" ? "outline" : "default"
+                }
               >
                 {loading ? (
                   <Spinner />
-                ) : testResult === "success" ? (
+                ) : testResult?.status === "success" ? (
                   <CheckIcon className="h-5 w-5 text-green-600" />
                 ) : (
                   "Test Connection"
@@ -287,178 +489,17 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
         </FieldGroup>
       </form>
 
-      {testResult === "success" && (
+      {testResult?.status === "success" && (
         <>
-          {schemas.length === 1 ? (
-            <div className="space-y-2">
-              <FieldLabel>Schema</FieldLabel>
-              <div className="rounded-lg bg-muted p-3 font-medium">
-                {schemas[0]}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <FieldLabel>Select Schema</FieldLabel>
-              <Select
-                value={selectedSchema}
-                onValueChange={setSelectedSchema}
-                disabled={deploying}
-              >
-                <SelectTrigger className="min-w-44">
-                  <SelectValue placeholder="Choose a schema" />
-                </SelectTrigger>
-                <SelectContent>
-                  {schemas.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {(tablesLoading || (selectedSchema && tables.length > 0)) && (
-            <TablesViewer tables={tables} tablesLoading={tablesLoading} />
-          )}
-
-          {selectedSchema && tables.length > 0 && (
-            <div className="space-y-5 rounded-lg border bg-muted/30 p-5">
-              <div className="space-y-2">
-                <FieldLabel>API Access Control</FieldLabel>
-                <Select
-                  value={accessType}
-                  onValueChange={(v) => setAccessType(v as AccessType)}
-                  disabled={deploying}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public">
-                      Public – Anyone can use the API
-                    </SelectItem>
-                    {hasCertUrl && (
-                      <SelectItem value="authenticated">
-                        Authenticated – Any logged-in Keycloak user
-                      </SelectItem>
-                    )}
-                    {hasCertUrl && claimKey && (
-                      <SelectItem value="specific">
-                        Specific users only
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {accessType === "specific" && hasCertUrl && claimKey && (
-                <div className="space-y-3">
-                  <form onSubmit={addSpecificUser} className="flex gap-2">
-                    <Input
-                      placeholder={`User identifier (${claimKey})`}
-                      value={newUserInput}
-                      onChange={(e) => setNewUserInput(e.target.value)}
-                      disabled={deploying}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={!newUserInput.trim() || deploying}
-                    >
-                      Add
-                    </Button>
-                  </form>
-
-                  <div className="flex flex-wrap gap-2">
-                    {specificUsers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No users added yet
-                      </p>
-                    ) : (
-                      specificUsers.map((user) => (
-                        <div
-                          key={user}
-                          className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
-                        >
-                          <span className="text-sm">{user}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeSpecificUser(user)}
-                            className="rounded-full p-0.5 hover:bg-primary/20"
-                            disabled={deploying}
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          {selectedSchema && tables.length > 0 && (
-            <>
-              {!deploying && !deployError && !deployResult ? null : (
-                <div className="space-y-5 rounded-lg border bg-muted/30 p-6">
-                  <h2 className="text-2xl font-semibold">
-                    {deploying
-                      ? "Deploying your API..."
-                      : deployError
-                        ? "Deployment Failed"
-                        : "Deployment Successful!"}
-                  </h2>
-
-                  {deploying && (
-                    <div className="flex items-center gap-4 text-lg">
-                      <Spinner className="h-6 w-6" />
-                      <span>{currentProgress || "Initializing..."}</span>
-                    </div>
-                  )}
-
-                  {deployError && (
-                    <Alert variant="destructive">
-                      <AlertTitle>{deployError}</AlertTitle>
-                    </Alert>
-                  )}
-
-                  {deployResult && (
-                    <div className="space-y-4">
-                      <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
-                        <p className="mb-2 text-lg font-medium">
-                          Your API is live!
-                        </p>
-                        <p>
-                          <span className="font-medium">URL:</span>{" "}
-                          <a
-                            href={deployResult.apiUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="break-all text-blue-600 underline dark:text-blue-400"
-                          >
-                            {deployResult.apiUrl}
-                          </a>
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="flex justify-center">
-                <Button
-                  size="lg"
-                  className="gap-3"
-                  disabled={loading || deploying || tablesLoading}
-                  onClick={handleDeploy}
-                >
-                  {deploying ? <Spinner /> : null}
-                  {deploying ? "Deploying..." : "Deploy REST API"}
-                </Button>
-              </div>
-            </>
-          )}
+          {renderSchema()}
+          {renderTables()}
         </>
+      )}
+      {testResult?.status === "error" && (
+        <Alert variant="destructive">
+          <AlertTitle>Error testing the database connection.</AlertTitle>
+          <AlertDescription>{testResult.message}</AlertDescription>
+        </Alert>
       )}
     </div>
   );

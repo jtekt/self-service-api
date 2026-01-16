@@ -1,4 +1,4 @@
-import PostgRESTCreate from "@/components/postgrest-create-form";
+import PostgRESTCreate from "@/components/postgrest-create";
 import { Env } from "@/config";
 
 export const dynamic = "force-dynamic";

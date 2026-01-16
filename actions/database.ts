@@ -25,7 +25,7 @@ export async function fetchSchemas(uri: string): Promise<SchemaResult> {
     return { success: true, schemas };
   } catch (err: any) {
     console.error(err);
-    return { success: false, error: "Error fetching schemas" };
+    return { success: false, error: err.message || "Error fetching schemas" };
   }
 }
 

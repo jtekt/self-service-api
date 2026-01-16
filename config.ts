@@ -1,16 +1,56 @@
-"server-only";
-
+import "server-only";
 import { z } from "zod";
 
-export const EnvSchema = z.object({
-  PGRST_IMAGE: z.string().min(1).default("postgrest/postgrest"),
-  PGRST_JWT_CERT_URL: z.url().optional(),
-  PGRST_JWT_CLAIM_KEY: z.string().min(1).optional(),
-  K8S_NAMESPACE: z.string().min(1).default("default"),
-  K8S_APP_PREFIX: z.string().optional(),
-  CLUSTER_ACCESS_URI: z.url().optional(),
-  HELP_URL: z.url().optional(),
-});
+export const EnvSchema = z
+  .object({
+    // Postgrest config
+    PGRST_IMAGE: z.string().min(1).default("postgrest/postgrest"),
+
+    // Postgrest OIDC config
+    PGRST_JWT_CERT_URL: z.url().optional(),
+    PGRST_JWT_CLAIM_KEY: z.string().min(1).optional(),
+
+    // Database
+    DATABASE_NAME_PREFIX: z
+      .string()
+      .optional()
+      .default("self-service-api")
+      .transform((value) => {
+        if (!value) return undefined;
+
+        // Remove trailing "-"
+        return value.endsWith("-") ? value.slice(0, -1) : value;
+      }), // Will be set as DATABASE_NAME_PREFIX-databaseName
+
+    // K8s config
+    K8S_NAMESPACE: z.string().min(1).default("default"), // Where the apps will be deployed
+
+    // Help
+    HELP_URL: z.url().optional(),
+
+    // Deployment
+    DEPLOY_MODE: z.enum(["ingress", "nodePort"]).default("nodePort"),
+    DEPLOY_PROTOCOL: z.enum(["http", "https"]).default("http"),
+
+    // Deployment - NodePort
+    NODEPORT_EXTERNAL_ADDRESS: z.string().optional(), // For NodePort mode (if not set will use the deployed node IP)
+
+    // Deployment - Ingress
+    INGRESS_DOMAIN: z.string().optional(), // If ingress use is required
+  })
+  .refine(
+    (data) => {
+      // If using ingress mode, INGRESS_DOMAIN is required
+      if (data.DEPLOY_MODE === "ingress" && !data.INGRESS_DOMAIN) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "INGRESS_DOMAIN is required when DEPLOY_MODE is 'ingress'",
+      path: ["INGRESS_DOMAIN"],
+    },
+  );
 
 // Parse + apply defaults
 export const Env = EnvSchema.parse(process.env);
