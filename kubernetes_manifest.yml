@@ -40,7 +40,7 @@ spec:
             - name: DEPLOY_PROTOCOL
               value: http
             - name: NODEPORT_EXTERNAL_ADDRESS
-              value: http://172.16.98.151
+              value: 172.16.98.151
           resources:
             requests:
               memory: "128Mi"

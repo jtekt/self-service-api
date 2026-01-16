@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         // FINAL - Set apiUrl for NodePort mode if not already set
         if (DEPLOY_MODE === "nodePort" && nodePort) {
           if (NODEPORT_EXTERNAL_ADDRESS) {
-            apiUrl = `${NODEPORT_EXTERNAL_ADDRESS}:${nodePort}`;
+            apiUrl = `${protocol}://${NODEPORT_EXTERNAL_ADDRESS}:${nodePort}`;
           } else {
             const nodeIp = await getNodeIp();
             if (nodeIp) {
