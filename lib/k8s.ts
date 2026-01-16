@@ -13,13 +13,76 @@ const {
 
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
-const k8sApi = kc.makeApiClient(k8s.CoreV1Api);
+const coreApi = kc.makeApiClient(k8s.CoreV1Api);
 const appsApi = kc.makeApiClient(k8s.AppsV1Api);
 const networkingApi = kc.makeApiClient(k8s.NetworkingV1Api);
 
+export async function createSecret(
+  params: DeploymentParams,
+): Promise<k8s.V1Secret> {
+  const { namespace, name, dbUri, schema, accessControl } = params;
+
+  const username_role = getDbUsername(dbUri);
+  if (!username_role) {
+    throw new Error("Error finding the database username");
+  }
+
+  // Base secret contents
+  const secretData: Record<string, string> = {
+    PGRST_DB_URI: dbUri,
+    PGRST_DB_ANON_ROLE: username_role,
+    PGRST_SCHEMAS: schema,
+    PGRST_SERVER_PORT: "3000",
+    PGRST_OPENAPI_MODE: "ignore-privileges",
+  };
+
+  // Add JWT‑related secrets if access control is not public
+  if (accessControl.type !== "public") {
+    if (!PGRST_JWT_CERT_URL) {
+      throw new Error("Cannot authenticate without certificate URL");
+    }
+
+    const cert = await fetch(PGRST_JWT_CERT_URL);
+    if (!cert.ok) {
+      throw new Error("Error fetching JWT certificates");
+    }
+    const certContents = await cert.text();
+
+    secretData.PGRST_JWT_SECRET = certContents;
+    secretData.PGRST_DB_PRE_REQUEST = `${schema}.check_user`;
+    secretData.PGRST_OPENAPI_SECURITY_ACTIVE = "true";
+  }
+
+  const secretName = `${name}-env`;
+
+  const secret: k8s.V1Secret = {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name: secretName,
+      namespace,
+    },
+    type: "Opaque",
+    stringData: secretData,
+  };
+
+  try {
+    return await coreApi.createNamespacedSecret({ namespace, body: secret });
+  } catch (err: any) {
+    if (err.code !== 409) throw err;
+
+    // Secret exists → replace
+    return await coreApi.replaceNamespacedSecret({
+      namespace,
+      name: secretName,
+      body: secret,
+    });
+  }
+}
+
 export async function createDeployment(
   params: DeploymentParams,
-): Promise<void> {
+): Promise<k8s.V1Deployment> {
   const { namespace, name, dbUri, schema, accessControl } = params;
   const username_role = getDbUsername(dbUri);
   if (!username_role) {
@@ -60,43 +123,23 @@ export async function createDeployment(
                   cpu: "600m",
                 },
               },
-              env: [
-                { name: "PGRST_DB_URI", value: dbUri },
-                { name: "PGRST_DB_ANON_ROLE", value: username_role },
-                { name: "PGRST_SCHEMAS", value: schema },
-                { name: "PGRST_SERVER_PORT", value: "3000" },
-                { name: "PGRST_OPENAPI_MODE", value: "ignore-privileges" },
-              ],
+              envFrom: [{ secretRef: { name: `${name}-env` } }],
             },
           ],
         },
       },
     },
   };
-  if (accessControl.type !== "public") {
-    if (!PGRST_JWT_CERT_URL) {
-      throw new Error("Cannot authenticate without certificate URL");
-    }
-    const cert = await fetch(PGRST_JWT_CERT_URL);
-    if (!cert.ok) {
-      throw new Error("Error fetching JWT certificates");
-    }
-    const certContents = await cert.text();
-    deployment.spec?.template.spec?.containers[0].env?.push(
-      { name: "PGRST_JWT_SECRET", value: certContents },
-      { name: "PGRST_DB_PRE_REQUEST", value: `${schema}.check_user` },
-      { name: "PGRST_OPENAPI_SECURITY_ACTIVE", value: "true" },
-    );
-  }
+  
   try {
-    await appsApi.createNamespacedDeployment({ namespace, body: deployment });
+   return await appsApi.createNamespacedDeployment({ namespace, body: deployment });
   } catch (error: any) {
     if (error.code !== 409) {
       console.error(error);
       throw error;
     }
     // Update existing resource
-    await appsApi.replaceNamespacedDeployment({
+   return await appsApi.replaceNamespacedDeployment({
       namespace,
       name,
       body: deployment,
@@ -137,7 +180,7 @@ export async function createService(
   };
 
   try {
-    return await k8sApi.createNamespacedService({
+    return await coreApi.createNamespacedService({
       namespace,
       body: service,
     });
@@ -147,7 +190,7 @@ export async function createService(
       throw error;
     }
     // Update existing resource
-    return await k8sApi.replaceNamespacedService({
+    return await coreApi.replaceNamespacedService({
       namespace,
       name,
       body: service,
@@ -222,7 +265,7 @@ export async function createIngress(params: DeploymentParams): Promise<string> {
 
 export async function getNodeIp(): Promise<string | undefined> {
   if (NODEPORT_EXTERNAL_ADDRESS) return NODEPORT_EXTERNAL_ADDRESS;
-  const { items } = await k8sApi.listNode();
+  const { items } = await coreApi.listNode();
   const node = items[0];
   const addr =
     node.status?.addresses?.find((a) => a.type === "ExternalIP") ||

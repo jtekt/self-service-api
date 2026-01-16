@@ -5,6 +5,7 @@ import {
   createIngress,
   getNodeIp,
   waitForDeploymentReady,
+  createSecret,
 } from "@/lib/k8s";
 import { Env } from "@/config";
 import { generateAuthFunction, generateDocsFunction } from "@/lib/database";
@@ -76,6 +77,10 @@ export async function POST(request: NextRequest) {
         // STEP 2
         sendJson({ type: "progress", message: "Creating API docs..." });
         await generateDocsFunction(params);
+
+        // STEP 3
+        sendJson({ type: "progress", message: "Creating Secret..." });
+        await createSecret(params);
 
         // STEP 3
         sendJson({ type: "progress", message: "Creating Deployment..." });
