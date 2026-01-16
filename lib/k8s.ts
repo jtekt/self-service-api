@@ -68,10 +68,12 @@ export async function createSecret(
 
   try {
     return await coreApi.createNamespacedSecret({ namespace, body: secret });
-  } catch (err: any) {
-    if (err.code !== 409) throw err;
-
-    // Secret exists → replace
+  } catch (error: any) {
+    if (error.code !== 409) {
+      console.error(error);
+      throw error;
+    }
+    // Update existing resource
     return await coreApi.replaceNamespacedSecret({
       namespace,
       name: secretName,
@@ -83,7 +85,7 @@ export async function createSecret(
 export async function createDeployment(
   params: DeploymentParams,
 ): Promise<k8s.V1Deployment> {
-  const { namespace, name, dbUri, schema, accessControl } = params;
+  const { namespace, name, dbUri } = params;
   const username_role = getDbUsername(dbUri);
   if (!username_role) {
     throw new Error("Error finding the database username");
