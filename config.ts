@@ -4,11 +4,15 @@ import { z } from "zod";
 export const EnvSchema = z
   .object({
     // Postgrest config
-    PGRST_IMAGE: z.string().min(1).default("postgrest/postgrest"),
+    PGRST_IMAGE: z.string().trim().min(1).default("postgrest/postgrest"),
 
     // Postgrest OIDC config
     PGRST_JWT_CERT_URL: z.url().optional(),
-    PGRST_JWT_CLAIM_KEY: z.string().min(1).optional(),
+    PGRST_JWT_CLAIM_KEY: z.string().trim().min(1).optional(),
+
+    // URI defaults config
+    DEFAULT_HOST: z.string().trim().optional(),
+    DEFAULT_PORT: z.string().trim().regex(/^\d+$/, "DEFAULT_PORT must be a number").optional().default("5432"),
 
     // Database
     DATABASE_NAME_PREFIX: z
@@ -23,7 +27,7 @@ export const EnvSchema = z
       }), // Will be set as DATABASE_NAME_PREFIX-databaseName
 
     // K8s config
-    K8S_NAMESPACE: z.string().min(1).default("default"), // Where the apps will be deployed
+    K8S_NAMESPACE: z.string().trim().min(1).default("default"), // Where the apps will be deployed
 
     // Help
     HELP_URL: z.url().optional(),
@@ -33,10 +37,10 @@ export const EnvSchema = z
     DEPLOY_PROTOCOL: z.enum(["http", "https"]).default("http"),
 
     // Deployment - NodePort
-    NODEPORT_EXTERNAL_ADDRESS: z.string().optional(), // For NodePort mode (if not set will use the deployed node IP)
+    NODEPORT_EXTERNAL_ADDRESS: z.string().trim().optional(), // For NodePort mode (if not set will use the deployed node IP)
 
     // Deployment - Ingress
-    INGRESS_DOMAIN: z.string().optional(), // If ingress use is required
+    INGRESS_DOMAIN: z.string().trim().optional(), // If ingress use is required
   })
   .refine(
     (data) => {
