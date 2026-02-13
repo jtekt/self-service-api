@@ -50,13 +50,13 @@ export function ConnectionForm({
     mode: "onBlur",
   });
 
-  const { handleSubmit, register, formState } = form;
+  const { handleSubmit, formState } = form;
   const { isSubmitting } = formState;
 
   if (hidden && testSuccess) {
     return (
-      <div className="flex items-center justify-between rounded-md border bg-green-50 p-4">
-        <p className="font-semibold text-green-800">Connection successful!</p>
+      <div className="flex items-center justify-between rounded-md border border-green-300 bg-green-50 p-4 text-green-800 dark:border-green-800 dark:bg-green-900/40 dark:text-green-100">
+        <p className="font-semibold">Connection successful!</p>
         <Button variant="outline" onClick={onEdit}>
           Edit Connection
         </Button>
