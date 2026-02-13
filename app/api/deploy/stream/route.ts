@@ -35,7 +35,7 @@ const {
 
 const BodySchema = z.object({
   uri: PostgresUriSchema,
-  schema: z.string(),
+  schema: z.string().trim(),
   accessControl: AccessControlSchema,
 });
 

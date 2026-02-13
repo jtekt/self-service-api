@@ -11,48 +11,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import { Table } from "@/lib/types";
 import { fetchSchemaDetails, fetchSchemas } from "@/actions/database";
-import { AccessControl } from "@/lib/validation";
 import { TablesViewer } from "./table-viewer";
+import type { AccessControl, ConnectionSchema } from "@/lib/validation";
+
+import { ConnectionForm } from "@/components/connection/ConnectionForm";
 
 type AccessType = "public" | "authenticated" | "specific";
 
 type Props = {
   hasCertUrl: boolean;
   claimKey: string | undefined;
+  defaultHost?: string;
+  defaultPort?: string;
 };
 
-export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
-  // Database connection
-  const [dbUri, setDbUri] = useState("");
+export default function PostgRESTCreate({
+  hasCertUrl,
+  claimKey,
+  defaultPort,
+  defaultHost,
+}: Props) {
+  // connection data
+  const [connectionValues, setConnectionValues] =
+    useState<ConnectionSchema | null>({
+      database: "",
+      host: defaultHost ?? "postgres",
+      password: "postgres",
+      port: defaultPort ?? "5432",
+      ssl: false,
+      user: "postgres",
+    });
+
+  const [connectionFormHidden, setConnectionFormHidden] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [testResult, setTestResult] = useState<{
     status: "success" | "error";
     message?: string;
   } | null>(null);
 
-  // Schema & tables
+  // schema & tables
   const [schemas, setSchemas] = useState<string[]>([]);
   const [selectedSchema, setSelectedSchema] = useState<string>("");
   const [tables, setTables] = useState<Table[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
 
-  // Access control
+  // access control
   const [accessType, setAccessType] = useState<AccessControl["type"]>(
     process.env.PGRST_JWT_CERT_URL ? "authenticated" : "public",
   );
   const [specificUsers, setSpecificUsers] = useState<AccessControl["users"]>(
     [],
   );
-  const [newUserInput, setNewUserInput] = useState("");
-  const [showPassword, setShowPassword] = useState(true);
 
-  // Deployment
+  const [newUserInput, setNewUserInput] = useState("");
+
+  // deployment
   const [deploying, setDeploying] = useState(false);
   const [currentProgress, setCurrentProgress] = useState("");
   const [deployError, setDeployError] = useState<string | null>(null);
@@ -62,10 +82,19 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     deploymentName: string;
   } | null>(null);
 
-  const handleTestConnection = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!dbUri) return;
+  // -------------------------------------------------------------------
+  // UTIL: Compose final URI
+  // -------------------------------------------------------------------
+  const buildUri = (c: ConnectionSchema) => {
+    return `postgresql://${c.user}:${c.password}@${c.host}:${c.port}/${c.database}?sslmode=${
+      c.ssl ? "require" : "disable"
+    }`;
+  };
 
+  // -------------------------------------------------------------------
+  // TEST CONNECTION
+  // -------------------------------------------------------------------
+  const handleTestConnectionWithUri = async (uri: string) => {
     setLoading(true);
     setTestResult(null);
     setSchemas([]);
@@ -74,26 +103,21 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     resetDeployment();
 
     try {
-      const res = await fetchSchemas(dbUri);
+      const res = await fetchSchemas(uri);
 
       if (!res.success) {
-        setTestResult({ status: "error", message: res.error });
+        setTestResult({
+          status: "error",
+          message: res.error,
+        });
         toast.error(res.error);
         return;
       }
 
-      const availableSchemas = res.schemas || [];
-      setSchemas(availableSchemas);
-
-      if (availableSchemas.length === 0) {
-        toast.warning("No schemas found in this database.");
-      } else {
-        setSelectedSchema(
-          availableSchemas.length === 1 ? availableSchemas[0] : "",
-        );
-        toast.success("Connection successful!");
-        setTestResult({ status: "success" });
-      }
+      setSchemas(res.schemas || []);
+      setTestResult({ status: "success" });
+      toast.success("Connection successful!");
+      setConnectionFormHidden(true);
     } catch (err: any) {
       const message = err.message || "Connection failed";
       setTestResult({ status: "error", message });
@@ -103,6 +127,7 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     }
   };
 
+  // -------------------------------------------------------------------
   const resetDeployment = () => {
     setDeploying(false);
     setCurrentProgress("");
@@ -110,11 +135,46 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     setDeployResult(null);
   };
 
+  // -------------------------------------------------------------------
+  // SCHEMA TABLE FETCHING
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    if (!connectionValues || !selectedSchema) return;
+
+    const uri = buildUri(connectionValues);
+    setTablesLoading(true);
+    setTables([]);
+    resetDeployment();
+
+    (async () => {
+      try {
+        const res = await fetchSchemaDetails(uri, selectedSchema);
+        if (!res.success) {
+          toast.error(res.error);
+          return;
+        }
+
+        setTables(res.tables);
+        setAccessType(res.accessControl.type);
+        setSpecificUsers(res.accessControl.users);
+      } catch (err: any) {
+        toast.error(err.message || "Failed to fetch tables");
+      } finally {
+        setTablesLoading(false);
+      }
+    })();
+  }, [selectedSchema, connectionValues]);
+
+  // -------------------------------------------------------------------
+  // DEPLOY
+  // -------------------------------------------------------------------
   const handleDeploy = async () => {
-    if (!dbUri || !selectedSchema || tables.length === 0) {
+    if (!connectionValues || !selectedSchema || tables.length === 0) {
       toast.error("Please connect to a database and select a schema first.");
       return;
     }
+
+    const uri = buildUri(connectionValues);
 
     setDeploying(true);
     setCurrentProgress("Starting deployment...");
@@ -122,7 +182,7 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     setDeployResult(null);
 
     const payload = {
-      uri: dbUri,
+      uri,
       schema: selectedSchema,
       tables,
       accessControl: {
@@ -182,9 +242,11 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     }
   };
 
+  // -------------------------------------------------------------------
+  // UI HELPERS
+  // -------------------------------------------------------------------
   const addSpecificUser = (e: FormEvent) => {
     e.preventDefault();
-
     if (!claimKey) return;
 
     const trimmed = newUserInput.trim();
@@ -194,39 +256,13 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
     }
   };
 
-  const removeSpecificUser = (user: string) => {
-    setSpecificUsers(specificUsers.filter((u) => u !== user));
+  const removeSpecificUser = (u: string) => {
+    setSpecificUsers(specificUsers.filter((x) => x !== u));
   };
 
-  useEffect(() => {
-    if (!dbUri || !selectedSchema) return;
-
-    setTablesLoading(true);
-    setTables([]);
-    resetDeployment();
-
-    (async () => {
-      try {
-        const res = await fetchSchemaDetails(dbUri, selectedSchema);
-        if (!res.success) {
-          toast.error(res.error);
-          return;
-        }
-        setTables(res.tables);
-        setAccessType(res.accessControl.type);
-        setSpecificUsers(res.accessControl.users);
-      } catch (err: any) {
-        toast.error(err.message || "Failed to fetch tables");
-      } finally {
-        setTablesLoading(false);
-      }
-    })();
-  }, [dbUri, selectedSchema]);
-
-  useEffect(() => {
-    resetDeployment();
-  }, [accessType]);
-
+  // -------------------------------------------------------------------
+  // RENDER COMPONENT
+  // -------------------------------------------------------------------
   const renderSchema = () => {
     return schemas.length === 1 ? (
       <div className="space-y-2">
@@ -257,25 +293,13 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
   };
 
   const renderTables = () => {
-    // No schema yet selected
-    if (!selectedSchema) {
-      return;
-    }
+    if (!selectedSchema) return;
+    if (tablesLoading) return <TablesViewer tables={[]} tablesLoading />;
 
-    // Tables loading
-    if (tablesLoading) {
-      return <TablesViewer tables={[]} tablesLoading={true} />;
-    }
-
-    // Selected schema has no tables
     if (tables.length === 0) {
       return (
         <Alert variant="warning">
-          <AlertTitle>
-            No tables found in the{" "}
-            <strong className="text-lg font-bold">{selectedSchema}</strong>{" "}
-            schema.
-          </AlertTitle>
+          <AlertTitle>No tables found.</AlertTitle>
         </Alert>
       );
     }
@@ -284,35 +308,30 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
       <>
         <TablesViewer tables={tables} tablesLoading={false} />
 
-        {/* Access Control */}
+        {/* ACCESS CONTROL */}
         <div className="space-y-5 rounded-lg border bg-muted/30 p-5">
-          <div className="space-y-2">
-            <FieldLabel>API Access Control</FieldLabel>
-            <Select
-              value={accessType}
-              onValueChange={(v) => setAccessType(v as AccessType)}
-              disabled={deploying}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose access type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="public">
-                  Public – Anyone can use the API
-                </SelectItem>
-                {hasCertUrl && (
-                  <SelectItem value="authenticated">
-                    Authenticated – Any logged‑in Keycloak user
-                  </SelectItem>
-                )}
-                {hasCertUrl && claimKey && (
-                  <SelectItem value="specific">Specific users only</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          <FieldLabel>API Access Control</FieldLabel>
+          <Select
+            value={accessType}
+            onValueChange={(v) => setAccessType(v as AccessType)}
+            disabled={deploying}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Choose access type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="public">Public</SelectItem>
 
-          {/* Specific user list */}
+              {hasCertUrl && (
+                <SelectItem value="authenticated">Authenticated</SelectItem>
+              )}
+
+              {hasCertUrl && claimKey && (
+                <SelectItem value="specific">Specific users</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+
           {accessType === "specific" && hasCertUrl && claimKey && (
             <div className="space-y-3">
               <form onSubmit={addSpecificUser} className="flex gap-2">
@@ -322,10 +341,7 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
                   onChange={(e) => setNewUserInput(e.target.value)}
                   disabled={deploying}
                 />
-                <Button
-                  type="submit"
-                  disabled={!newUserInput.trim() || deploying}
-                >
+                <Button disabled={!newUserInput.trim() || deploying}>
                   Add
                 </Button>
               </form>
@@ -336,19 +352,19 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
                 </Alert>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {specificUsers.map((user) => (
+                  {specificUsers.map((u) => (
                     <div
-                      key={user}
+                      key={u}
                       className="flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5"
                     >
-                      <span className="text-sm">{user}</span>
+                      <span className="text-sm">{u}</span>
                       <button
                         type="button"
-                        onClick={() => removeSpecificUser(user)}
+                        onClick={() => removeSpecificUser(u)}
                         className="rounded-full p-0.5 hover:bg-primary/20"
                         disabled={deploying}
                       >
-                        <XIcon className="h-4 w-4" />
+                        ✕
                       </button>
                     </div>
                   ))}
@@ -358,21 +374,33 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
           )}
         </div>
 
-        {/* Deployment feedback */}
-        {(deploying || deployError || deployResult) && (
+        {/* DEPLOY */}
+        <div className="flex justify-center">
+          <Button
+            size="lg"
+            className="gap-3"
+            disabled={loading || deploying || tablesLoading}
+            onClick={handleDeploy}
+          >
+            {deploying && <Spinner />}
+            {deploying ? "Deploying..." : "Deploy REST API"}
+          </Button>
+        </div>
+
+        {deploying || deployError || deployResult ? (
           <div className="space-y-5 rounded-lg border bg-muted/30 p-6">
             <h2 className="text-2xl font-semibold">
               {deploying
-                ? "Deploying your API..."
+                ? "Deploying..."
                 : deployError
                   ? "Deployment Failed"
-                  : "Deployment Successful!"}
+                  : "Deployment Successful"}
             </h2>
 
             {deploying && (
               <div className="flex items-center gap-4 text-lg">
                 <Spinner className="h-6 w-6" />
-                <span>{currentProgress || "Initializing..."}</span>
+                <span>{currentProgress}</span>
               </div>
             )}
 
@@ -383,53 +411,35 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
             )}
 
             {deployResult && (
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
                 <div className="grid grid-cols-[150px_1fr] gap-x-3 gap-y-2">
-                  <div className="text-right font-medium text-gray-700 dark:text-gray-300">
-                    Base URL:
-                  </div>
+                  <div className="text-right font-medium">Base URL:</div>
                   <a
                     href={deployResult.apiUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="break-all text-blue-600 underline"
+                    target="_blank"
                   >
                     {deployResult.apiUrl}
                   </a>
 
-                  <div className="text-right font-medium text-gray-700 dark:text-gray-300">
-                    Documentation:
-                  </div>
+                  <div className="text-right font-medium">Documentation:</div>
                   <a
-                    href={deployResult.apiUrl + "/rpc/docs"}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`${deployResult.apiUrl}/rpc/docs`}
                     className="break-all text-blue-600 underline"
+                    target="_blank"
                   >
-                    {deployResult.apiUrl + "/rpc/docs"}
+                    {deployResult.apiUrl}/rpc/docs
                   </a>
                 </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* Deploy button */}
-        <div className="flex justify-center">
-          <Button
-            size="lg"
-            className="gap-3"
-            disabled={loading || deploying || tablesLoading}
-            onClick={handleDeploy}
-          >
-            {deploying ? <Spinner /> : null}
-            {deploying ? "Deploying..." : "Deploy REST API"}
-          </Button>
-        </div>
+        ) : null}
       </>
     );
   };
 
+  // -------------------------------------------------------------------
   return (
     <div className="mx-auto max-w-3xl space-y-8 py-8">
       <div className="text-center">
@@ -437,67 +447,38 @@ export default function PostgRESTCreate({ hasCertUrl, claimKey }: Props) {
           Create a REST API for your database
         </h1>
         <p className="mt-3 text-gray-600">
-          Connect to PostgreSQL → Choose schema → Set access rules → Deploy
+          Connect → Choose schema → Set access rules → Deploy
         </p>
       </div>
 
-      <form onSubmit={handleTestConnection} className="space-y-4">
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="uri">PostgreSQL Connection URI</FieldLabel>
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <Input
-                  id="uri"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="postgresql://user:password@host:5432/dbname"
-                  value={dbUri}
-                  onChange={(e) => setDbUri(e.target.value)}
-                  disabled={loading || deploying}
-                  className="pr-10"
-                  onPaste={() => setShowPassword(false)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-2.5 -translate-y-1/2"
-                >
-                  {showPassword ? (
-                    <EyeIcon className="h-4 w-4" />
-                  ) : (
-                    <EyeOffIcon className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              <Button
-                type="submit"
-                disabled={!dbUri || loading || deploying}
-                variant={
-                  testResult?.status === "success" ? "outline" : "default"
-                }
-              >
-                {loading ? (
-                  <Spinner />
-                ) : testResult?.status === "success" ? (
-                  <CheckIcon className="h-5 w-5 text-green-600" />
-                ) : (
-                  "Test Connection"
-                )}
-              </Button>
-            </div>
-          </Field>
-        </FieldGroup>
-      </form>
+      {/* CONNECTION FORM */}
+      <ConnectionForm
+        defaultValues={connectionValues ?? undefined}
+        hidden={connectionFormHidden}
+        testSuccess={testResult?.status === "success"}
+        disabled={loading || deploying}
+        onEdit={() => {
+          setConnectionFormHidden(false);
+          setTestResult(null);
+        }}
+        onTest={async (values) => {
+          setConnectionValues(values);
+          const uri = buildUri(values);
+          await handleTestConnectionWithUri(uri);
+        }}
+      />
 
+      {/* RESULT SECTIONS */}
       {testResult?.status === "success" && (
         <>
           {renderSchema()}
           {renderTables()}
         </>
       )}
+
       {testResult?.status === "error" && (
         <Alert variant="destructive">
-          <AlertTitle>Error testing the database connection.</AlertTitle>
+          <AlertTitle>Connection Failed</AlertTitle>
           <AlertDescription>{testResult.message}</AlertDescription>
         </Alert>
       )}
