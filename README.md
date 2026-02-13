@@ -74,6 +74,7 @@ Below are all supported environment variables with updated naming:
 | `PGRST_JWT_CLAIM_KEY`       | JWT claim that identifies the user                            | `email` or `preferred_username`                              |
 | `DEFAULT_HOST`              | Form database host default value                              | `postgres`                                                   |
 | `DEFAULT_PORT`              | Form database port default value                              | `5432`                                                       |
+| `DEFAULT_READ_ONLY`         | Form with default values are read-only                        | `true`                                                       |
 | `DATABASE_NAME_PREFIX`      | Prefix name for the deployed PostgREST in k8s                 | `self-service-api`                                           |
 | `K8S_NAMESPACE`             | Kubernetes namespace where PostgREST is deployed              | `default`                                                    |
 | `HELP_URL`                  | Optional link to additional documentation or help resources   | `https://docs.example.com`                                   |

@@ -8,6 +8,7 @@ export default function HomePage() {
   const claimKey = Env.PGRST_JWT_CLAIM_KEY;
   const defaultHost = Env.DEFAULT_HOST;
   const defaultPort = Env.DEFAULT_PORT;
+  const defaultReadOnly = Env.DEFAULT_READ_ONLY;
 
   return (
     <PostgRESTCreate
@@ -15,6 +16,7 @@ export default function HomePage() {
       claimKey={claimKey}
       defaultHost={defaultHost}
       defaultPort={defaultPort}
+      defaultReadOnly={defaultReadOnly}
     />
   );
 }

@@ -12,7 +12,21 @@ export const EnvSchema = z
 
     // URI defaults config
     DEFAULT_HOST: z.string().trim().optional(),
-    DEFAULT_PORT: z.string().trim().regex(/^\d+$/, "DEFAULT_PORT must be a number").optional().default("5432"),
+    DEFAULT_PORT: z
+      .string()
+      .trim()
+      .regex(/^\d+$/, "DEFAULT_PORT must be a number")
+      .optional(),
+    DEFAULT_READ_ONLY: z
+      .preprocess((val) => {
+        if (typeof val === "string") {
+          const lower = val.toLowerCase();
+          if (lower === "true") return true;
+          if (lower === "false") return false;
+        }
+        return val;
+      }, z.boolean())
+      .default(false),
 
     // Database
     DATABASE_NAME_PREFIX: z

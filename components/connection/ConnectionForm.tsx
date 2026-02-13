@@ -12,6 +12,14 @@ import { Checkbox } from "../ui/checkbox";
 
 type Props = {
   defaultValues?: Partial<ConnectionSchema>;
+  readOnly: {
+    host: boolean;
+    port: boolean;
+    user: boolean;
+    password: boolean;
+    database: boolean;
+    ssl: boolean;
+  };
   onTest: (values: ConnectionSchema) => Promise<void>;
   disabled?: boolean;
   hidden?: boolean;
@@ -21,6 +29,7 @@ type Props = {
 
 export function ConnectionForm({
   defaultValues,
+  readOnly,
   onTest,
   disabled,
   hidden,
@@ -35,7 +44,7 @@ export function ConnectionForm({
       user: "",
       password: "",
       database: "",
-      ssl: false,
+      ssl: true,
       ...defaultValues,
     },
     mode: "onBlur",
@@ -72,6 +81,7 @@ export function ConnectionForm({
                 id={field.name}
                 type="text"
                 aria-invalid={fieldState.invalid}
+                readOnly={readOnly.host}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -89,6 +99,7 @@ export function ConnectionForm({
                 id={field.name}
                 type="text"
                 aria-invalid={fieldState.invalid}
+                readOnly={readOnly.port}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -106,6 +117,7 @@ export function ConnectionForm({
                 id={field.name}
                 type="text"
                 aria-invalid={fieldState.invalid}
+                readOnly={readOnly.user}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -123,6 +135,7 @@ export function ConnectionForm({
                 id={field.name}
                 type="password"
                 aria-invalid={fieldState.invalid}
+                readOnly={readOnly.password}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -140,21 +153,31 @@ export function ConnectionForm({
                 id={field.name}
                 type="text"
                 aria-invalid={fieldState.invalid}
+                readOnly={readOnly.database}
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />
 
-        <Field orientation="horizontal">
-          <Checkbox id="ssl" {...register("ssl")} />
-          <FieldLabel
-            htmlFor="ssl"
-            className="font-normal"
-          >
-            Use SSL
-          </FieldLabel>
-        </Field>
+        <Controller
+          name="ssl"
+          control={form.control}
+          render={({ field }) => (
+            <Field orientation="horizontal">
+              <Checkbox
+                id="ssl"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                disabled={readOnly.ssl}
+                aria-readonly={readOnly.ssl}
+              />
+              <FieldLabel htmlFor="ssl" className="font-normal">
+                Use SSL
+              </FieldLabel>
+            </Field>
+          )}
+        />
 
         {/* Submit button — full width on mobile */}
         <Button

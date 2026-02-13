@@ -29,6 +29,7 @@ type Props = {
   claimKey: string | undefined;
   defaultHost?: string;
   defaultPort?: string;
+  defaultReadOnly: boolean;
 };
 
 export default function PostgRESTCreate({
@@ -36,16 +37,17 @@ export default function PostgRESTCreate({
   claimKey,
   defaultPort,
   defaultHost,
+  defaultReadOnly,
 }: Props) {
   // connection data
   const [connectionValues, setConnectionValues] =
     useState<ConnectionSchema | null>({
       database: "",
-      host: defaultHost ?? "postgres",
-      password: "postgres",
+      host: defaultHost ?? "",
+      password: "",
       port: defaultPort ?? "5432",
       ssl: false,
-      user: "postgres",
+      user: "",
     });
 
   const [connectionFormHidden, setConnectionFormHidden] = useState(false);
@@ -81,6 +83,15 @@ export default function PostgRESTCreate({
     namespace: string;
     deploymentName: string;
   } | null>(null);
+
+  const readOnly = {
+    host: defaultReadOnly && defaultHost !== undefined,
+    port: defaultReadOnly && defaultPort !== undefined,
+    user: false,
+    password: false,
+    database: false,
+    ssl: false,
+  };
 
   // -------------------------------------------------------------------
   // UTIL: Compose final URI
@@ -454,6 +465,7 @@ export default function PostgRESTCreate({
       {/* CONNECTION FORM */}
       <ConnectionForm
         defaultValues={connectionValues ?? undefined}
+        readOnly={readOnly}
         hidden={connectionFormHidden}
         testSuccess={testResult?.status === "success"}
         disabled={loading || deploying}
