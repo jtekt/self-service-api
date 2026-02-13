@@ -31,6 +31,12 @@ spec:
               value: http://10.115.1.100:30416/realms/jtekt/protocol/openid-connect/certs
             - name: PGRST_JWT_CLAIM_KEY
               value: email
+            - name: DEFAULT_HOST
+              value: pooler-rw-transaction.public
+            - name: DEFAULT_PORT
+              value: "5432"
+            - name: DEFAULT_READ_ONLY
+              value: true
             - name: DATABASE_NAME_PREFIX
               value: api
             - name: K8S_NAMESPACE
