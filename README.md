@@ -1,102 +1,145 @@
-# Self-service API
+# Self-Service API
 
-A lightweight UI to deploy **PostgREST** services on a **Kubernetes cluster**.
+A lightweight UI to deploy PostgREST APIs on a Kubernetes cluster.
 
-This application allows users to self‑service the creation of a PostgREST API by:
+The application allows users to:
 
-1. **Connecting to PostgreSQL** (providing a database URI)
-2. **Selecting a schema** from the connected database
-3. **Configuring access rules** (public, authenticated, or user‑restricted)
-4. **Deploying a dedicated PostgREST instance** inside the same Kubernetes cluster
-5. **Receiving a ready-to-use API URL**
-
----
-
-## 🔐 Access Control
-
-Choose how your generated API should authenticate:
-
-- **`public`** — No authentication required
-- **`authenticated`** — Requires any valid OIDC JWT
-- **`specific`** — Only selected OIDC users are allowed
-
-For authenticated modes, the application uses the JWT claim defined by:
-
-```
-PGRST_JWT_CLAIM_KEY
-```
-
-> **Note:** Authentication requires `PGRST_JWT_CERT_URL`, which should point to a JWKS endpoint  
-> (e.g. Keycloak: `/realms/<realm>/protocol/openid-connect/certs`)
-
-The application fetches the public certificates and injects them into PostgREST as `PGRST_JWT_SECRET`.
+1. Connect to a PostgreSQL database
+2. Select a schema
+3. Configure API access
+4. Deploy a PostgREST instance automatically
+5. Get a ready-to-use API endpoint
 
 ---
 
-## 📦 Deployment Flow
+# Quick Deploy
 
-Once configured, the UI triggers these steps:
+## 1. Create environment file
 
-1. Validate connection and introspect database schema
-2. Generate PostgREST authentication SQL helpers
-3. Generate OpenAPI documentation functions
-4. Create a Kubernetes **Deployment**
-5. Create either:
-   - A **NodePort Service** — direct node access
-   - An **Ingress** — domain-based API access
-6. Wait until the deployment is ready
-7. Return the final **Base URL** and **Documentation URL**
+Copy the example configuration:
 
-### Example URLs
+```bash
+cp .env.example .env
+```
 
-#### NodePort mode:
+Edit the values based on your infrastructure.
+
+---
+
+# .env.example
+
+## Common configuration
+
+Used for both NodePort and Ingress deployments.
+
+```env
+# PostgREST image
+PGRST_IMAGE=postgrest/postgrest
+
+# Optional OIDC configuration
+PGRST_JWT_CERT_URL=
+PGRST_JWT_CLAIM_KEY=email
+
+# Default database values shown in UI
+DEFAULT_HOST=postgres
+DEFAULT_PORT=5432
+DEFAULT_READ_ONLY=false
+
+# Prefix for deployed resources
+DATABASE_NAME_PREFIX=self-service-api
+
+# Kubernetes namespace
+K8S_NAMESPACE=default
+
+# Optional help link
+HELP_URL=
+
+# URL protocol used in generated endpoints
+DEPLOY_PROTOCOL=http
+```
+
+---
+
+# NodePort Deployment
+
+Expose APIs directly from cluster nodes.
+
+```env
+DEPLOY_MODE=nodePort
+
+# Optional external address of the cluster
+# If empty the node IP will be used
+NODEPORT_EXTERNAL_ADDRESS=
+```
+
+### Example URL
 
 ```
 http://<node-ip>:<nodePort>
 ```
 
-#### Ingress mode:
+Example
 
 ```
-https://<subdomain-prefix><dbname>.<INGRESS_DOMAIN>
+http://192.168.1.10:31234
 ```
 
 ---
 
-## ⚙️ Environment Variables
+# Ingress Deployment
 
-Below are all supported environment variables with updated naming:
+Expose APIs through a domain using an ingress controller.
 
-| Variable                    | Description                                                   | Example                                                      |
-| --------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
-| `PGRST_IMAGE`               | PostgREST Docker image used for deployments                   | `postgrest/postgrest`                                        |
-| `PGRST_JWT_CERT_URL`        | JWKS / certificate URL for validating JWTs                    | `http://keycloak/realms/realm/protocol/openid-connect/certs` |
-| `PGRST_JWT_CLAIM_KEY`       | JWT claim that identifies the user                            | `email` or `preferred_username`                              |
-| `DEFAULT_HOST`              | Form database host default value                              | `postgres`                                                   |
-| `DEFAULT_PORT`              | Form database port default value                              | `5432`                                                       |
-| `DEFAULT_READ_ONLY`         | Form with default values are read-only                        | `true`                                                       |
-| `DATABASE_NAME_PREFIX`      | Prefix name for the deployed PostgREST in k8s                 | `self-service-api`                                           |
-| `K8S_NAMESPACE`             | Kubernetes namespace where PostgREST is deployed              | `default`                                                    |
-| `HELP_URL`                  | Optional link to additional documentation or help resources   | `https://docs.example.com`                                   |
-| `DEPLOY_MODE`               | Deployment mode: `nodePort` or `ingress`                      | `ingress`                                                    |
-| `NODEPORT_EXTERNAL_ADDRESS` | Optional override for external IP/hostname in NodePort mode   | `123.45.67.89`                                               |
-| `INGRESS_DOMAIN`            | Base domain used for ingress-based deployments                | `example.com`                                                |
-| `INGRESS_SUBDOMAIN_PREFIX`  | Optional prefix for ingress hostnames (normalized internally) | `self-service-api`                                           |
-| `DEPLOY_PROTOCOL`           | Protocol used for generated URLs: `http` or `https`           | `https`                                                      |
+```env
+DEPLOY_MODE=ingress
 
-### Hostname construction (Ingress mode)
-
-The final hostname becomes:
-
-```
-<INGRESS_SUBDOMAIN_PREFIX>-<databaseName>.<INGRESS_DOMAIN>
+# Base domain used for generated APIs
+INGRESS_DOMAIN=subdomain.example.com
 ```
 
-Example:
+### Generated hostname
 
 ```
-self-service-api-orders.example.com
+<database-name>.<INGRESS_DOMAIN>
 ```
 
-> A trailing `-` is automatically removed from `INGRESS_SUBDOMAIN_PREFIX`  
-> (e.g., `my-prefix-` becomes `my-prefix`).
+Example
+
+```
+orders.example.com
+```
+
+---
+
+# What the Application Deploys
+
+For every API created:
+
+1. Database connection is validated
+2. Schema is inspected
+3. PostgREST configuration is generated
+4. Kubernetes Deployment is created
+5. Service or Ingress is created
+6. API endpoint is returned to the user
+
+---
+
+# Access Modes
+
+The deployed API can be configured as:
+
+* public
+* authenticated (OIDC required)
+* specific users
+
+Authentication relies on the JWT claim defined by:
+
+```
+PGRST_JWT_CLAIM_KEY
+```
+
+If authentication is enabled you must provide:
+
+```
+PGRST_JWT_CERT_URL
+```
