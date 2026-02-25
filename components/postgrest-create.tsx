@@ -455,16 +455,7 @@ export default function PostgRESTCreate({
 
   // -------------------------------------------------------------------
   return (
-    <div className="mx-auto max-w-3xl space-y-8 py-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold">
-          Create a REST API for your database
-        </h1>
-        <p className="mt-3 text-gray-600">
-          Connect → Choose schema → Set access rules → Deploy
-        </p>
-      </div>
-
+    <>
       {/* CONNECTION FORM */}
       <ConnectionForm
         defaultValues={connectionValues ?? undefined}
@@ -497,6 +488,6 @@ export default function PostgRESTCreate({
           <AlertDescription>{testResult.message}</AlertDescription>
         </Alert>
       )}
-    </div>
+    </>
   );
 }

@@ -82,6 +82,11 @@ export function ConnectionForm({
                 type="text"
                 aria-invalid={fieldState.invalid}
                 readOnly={readOnly.host}
+                className={
+                  readOnly.host
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : ""
+                }
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -100,6 +105,11 @@ export function ConnectionForm({
                 type="text"
                 aria-invalid={fieldState.invalid}
                 readOnly={readOnly.port}
+                className={
+                  readOnly.port
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : ""
+                }
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -118,6 +128,11 @@ export function ConnectionForm({
                 type="text"
                 aria-invalid={fieldState.invalid}
                 readOnly={readOnly.user}
+                className={
+                  readOnly.user
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : ""
+                }
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -136,6 +151,11 @@ export function ConnectionForm({
                 type="password"
                 aria-invalid={fieldState.invalid}
                 readOnly={readOnly.password}
+                className={
+                  readOnly.password
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : ""
+                }
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -154,6 +174,11 @@ export function ConnectionForm({
                 type="text"
                 aria-invalid={fieldState.invalid}
                 readOnly={readOnly.database}
+                className={
+                  readOnly.database
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : ""
+                }
               />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
@@ -171,6 +196,11 @@ export function ConnectionForm({
                 onCheckedChange={field.onChange}
                 disabled={readOnly.ssl}
                 aria-readonly={readOnly.ssl}
+                className={
+                  readOnly.ssl
+                    ? "cursor-not-allowed bg-muted text-muted-foreground"
+                    : ""
+                }
               />
               <FieldLabel htmlFor="ssl" className="font-normal">
                 Use SSL

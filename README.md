@@ -143,3 +143,55 @@ If authentication is enabled you must provide:
 ```
 PGRST_JWT_CERT_URL
 ```
+
+# Environment Variables Reference
+
+## Core
+
+| Variable               | Required | Default               | Description                                                                   |
+| ---------------------- | -------- | --------------------- | ----------------------------------------------------------------------------- |
+| `PGRST_IMAGE`          | No       | `postgrest/postgrest` | PostgREST Docker image used for deployments.                                  |
+| `K8S_NAMESPACE`        | No       | `default`             | Kubernetes namespace where services are deployed.                             |
+| `DATABASE_NAME_PREFIX` | No       | `self-service-api`    | Prefix for generated resources. Final name becomes `<prefix>-<databaseName>`. |
+| `HELP_URL`             | No       | —                     | Optional documentation link displayed in the UI.                              |
+| `MESSAGE`              | No       | —                     | Optional message shown to users in the interface.                             |
+
+## Database Defaults
+
+| Variable            | Required | Default | Description                                                    |
+| ------------------- | -------- | ------- | -------------------------------------------------------------- |
+| `DEFAULT_HOST`      | No       | —       | Default database host shown in the form.                       |
+| `DEFAULT_PORT`      | No       | —       | Default database port. Must be numeric.                        |
+| `DEFAULT_READ_ONLY` | No       | `false` | If true, default connection values cannot be edited in the UI. |
+
+## Authentication (OIDC)
+
+| Variable              | Required | Depends On   | Description                                         |
+| --------------------- | -------- | ------------ | --------------------------------------------------- |
+| `PGRST_JWT_CERT_URL`  | Optional | Auth enabled | JWKS endpoint used to validate JWT tokens.          |
+| `PGRST_JWT_CLAIM_KEY` | Optional | Auth enabled | JWT claim used to identify the user (e.g. `email`). |
+
+## Deployment
+
+| Variable          | Required | Default    | Description                               |
+| ----------------- | -------- | ---------- | ----------------------------------------- |
+| `DEPLOY_MODE`     | No       | `nodePort` | Deployment type: `nodePort` or `ingress`. |
+| `DEPLOY_PROTOCOL` | No       | `http`     | Protocol used when generating URLs.       |
+
+### NodePort
+
+| Variable                    | Required | Description                                           |
+| --------------------------- | -------- | ----------------------------------------------------- |
+| `NODEPORT_EXTERNAL_ADDRESS` | Optional | Override the detected node IP used in generated URLs. |
+
+### Ingress
+
+| Variable         | Required | Condition                           | Description                                 |
+| ---------------- | -------- | ----------------------------------- | ------------------------------------------- |
+| `INGRESS_DOMAIN` | Yes*     | Required when `DEPLOY_MODE=ingress` | Base domain used to generate API hostnames. |
+
+Example hostname:
+
+```
+<database-name>.<INGRESS_DOMAIN>
+```

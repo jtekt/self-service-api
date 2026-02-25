@@ -47,6 +47,8 @@ spec:
               value: http
             - name: INGRESS_DOMAIN
               value: higashikariya.jtektrnd.net
+            - name: MESSAGE
+              value: Database credentials can be generated in <a target="_blank" href="http://self-service-db.higashikariya.jtektrnd.net"><u><strong>Self-service DB</strong></u></a>. Use those credentials when connecting your database in the self-service form
           resources:
             requests:
               memory: "128Mi"
@@ -79,7 +81,7 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]
-    
+
   - apiGroups: [""]
     resources: ["services"]
     verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]

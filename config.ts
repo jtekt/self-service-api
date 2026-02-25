@@ -55,6 +55,9 @@ export const EnvSchema = z
 
     // Deployment - Ingress
     INGRESS_DOMAIN: z.string().trim().optional(), // If ingress use is required
+
+    // Generic message to explain the app if needed
+    MESSAGE: z.string().optional()
   })
   .refine(
     (data) => {
