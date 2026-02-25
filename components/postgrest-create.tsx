@@ -126,6 +126,9 @@ export default function PostgRESTCreate({
       }
 
       setSchemas(res.schemas || []);
+      if(res.schemas.length === 1) {
+        setSelectedSchema(res.schemas[0])
+      }
       setTestResult({ status: "success" });
       toast.success("Connection successful!");
       setConnectionFormHidden(true);
