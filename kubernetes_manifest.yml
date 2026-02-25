@@ -42,11 +42,11 @@ spec:
             - name: K8S_NAMESPACE
               value: ${K8S_APPS_NAMESPACE}
             - name: DEPLOY_MODE
-              value: nodePort
+              value: ingress
             - name: DEPLOY_PROTOCOL
               value: http
-            - name: NODEPORT_EXTERNAL_ADDRESS
-              value: 172.16.98.151
+            - name: INGRESS_DOMAIN
+              value: higashikariya.jtektrnd.net
           resources:
             requests:
               memory: "128Mi"
