@@ -8,8 +8,8 @@ kind: Deployment
 metadata:
   name: ${APPLICATION_NAME}
   annotations:
-    users: "kevin_fabel@jtekt.co.jp"
-    repository.url: ${CI_PROJECT_URL}
+    deployment-manager.jtekt.co.jp/users: ${GITLAB_USER_EMAIL}
+    deployment-manager.jtekt.co.jp/repository.url: ${CI_PROJECT_URL}
 spec:
   replicas: 1
   selector:
@@ -47,8 +47,15 @@ spec:
               value: http
             - name: INGRESS_DOMAIN
               value: higashikariya.jtektrnd.net
+            - name: AUTH_KEYCLOAK_ID
+              value: public
+            - name: AUTH_KEYCLOAK_ISSUER
+              value: https://keycloak.jtektrnd.net/realms/jtekt
             - name: MESSAGE
               value: Database credentials can be generated in <a target="_blank" href="http://self-service-db.higashikariya.jtektrnd.net"><u><strong>Self-service DB</strong></u></a>. Use those credentials when connecting your database in the self-service form
+          envFrom:
+            - secretRef:
+                name: $K8S_ENV_NAME
           resources:
             requests:
               memory: "128Mi"

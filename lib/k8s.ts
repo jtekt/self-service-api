@@ -85,17 +85,23 @@ export async function createSecret(
 export async function createDeployment(
   params: DeploymentParams,
 ): Promise<k8s.V1Deployment> {
-  const { namespace, name, dbUri } = params;
+  const { namespace, name, dbUri, user } = params;
+
   const username_role = getDbUsername(dbUri);
+
   if (!username_role) {
     throw new Error("Error finding the database username");
   }
+
   const deployment: k8s.V1Deployment = {
     apiVersion: "apps/v1",
     kind: "Deployment",
     metadata: {
       name,
       namespace,
+      annotations: {
+        "deployment-manager.jtekt.co.jp/users": user.email,
+      },
     },
     spec: {
       replicas: 1,
@@ -132,16 +138,19 @@ export async function createDeployment(
       },
     },
   };
-  
+
   try {
-   return await appsApi.createNamespacedDeployment({ namespace, body: deployment });
+    return await appsApi.createNamespacedDeployment({
+      namespace,
+      body: deployment,
+    });
   } catch (error: any) {
     if (error.code !== 409) {
       console.error(error);
       throw error;
     }
     // Update existing resource
-   return await appsApi.replaceNamespacedDeployment({
+    return await appsApi.replaceNamespacedDeployment({
       namespace,
       name,
       body: deployment,

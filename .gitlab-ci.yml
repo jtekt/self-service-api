@@ -11,6 +11,7 @@ variables:
   K8S_NAMESPACE: fabel
   K8S_APPS_NAMESPACE: self-postgrest
   K8S_SERVICE_ACCOUNT: self-service-api-sa
+  K8S_ENV_NAME: $APPLICATION_NAME-env
 
 build-job:
   stage: build
@@ -35,6 +36,7 @@ deploy-job:
   only:
     - main
   script:
+    - kubectl create secret generic $K8S_ENV_NAME --from-env-file=$ENV --dry-run=client -o yaml | kubectl apply -f -
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
 
   environment:
