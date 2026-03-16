@@ -1,4 +1,3 @@
-import { Pool } from "pg";
 import type { Table } from "./types";
 import type { AccessControl } from "./validation";
 import { Env } from "@/config";

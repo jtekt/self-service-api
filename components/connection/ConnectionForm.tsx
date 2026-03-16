@@ -9,6 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { connectionSchema, ConnectionSchema } from "@/lib/validation";
 import { Card } from "../ui/card";
 import { Checkbox } from "../ui/checkbox";
+import { RefreshCwIcon } from "lucide-react";
 
 type Props = {
   defaultValues?: Partial<ConnectionSchema>;
@@ -23,8 +24,10 @@ type Props = {
   onTest: (values: ConnectionSchema) => Promise<void>;
   disabled?: boolean;
   hidden?: boolean;
-  onEdit?: () => void;
+  onEdit: () => void;
+  onRefresh: () => void;
   testSuccess?: boolean;
+  loading?: boolean;
 };
 
 export function ConnectionForm({
@@ -34,7 +37,9 @@ export function ConnectionForm({
   disabled,
   hidden,
   onEdit,
+  onRefresh,
   testSuccess,
+  loading,
 }: Props) {
   const form = useForm<ConnectionSchema>({
     resolver: zodResolver(connectionSchema),
@@ -55,10 +60,13 @@ export function ConnectionForm({
 
   if (hidden && testSuccess) {
     return (
-      <div className="flex items-center justify-between rounded-md border border-green-300 bg-green-50 p-4 text-green-800 dark:border-green-800 dark:bg-green-900/40 dark:text-green-100">
-        <p className="font-semibold">Connection successful!</p>
-        <Button variant="outline" onClick={onEdit}>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-green-300 bg-green-50 p-4 text-green-800 dark:border-green-800 dark:bg-green-900/40 dark:text-green-100">
+        <p className="mr-auto font-semibold">Connection successful!</p>
+        <Button variant="outline" onClick={onEdit} disabled={loading}>
           Edit Connection
+        </Button>
+        <Button variant="outline" onClick={onRefresh} disabled={loading}>
+          <RefreshCwIcon className={loading ? "animate-spin" : ""} />
         </Button>
       </div>
     );

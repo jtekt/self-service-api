@@ -16,6 +16,7 @@ import {
   PostgresUriSchema,
 } from "@/lib/validation";
 import { toK8sName } from "@/utils/k8s";
+import { auth } from "@/auth";
 
 export interface DeploymentParams {
   namespace: string;
@@ -23,6 +24,7 @@ export interface DeploymentParams {
   dbUri: string;
   schema: string;
   accessControl: AccessControl;
+  user: { email: string };
 }
 
 const {
@@ -40,6 +42,12 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const session = await auth();
+
+  const userEmail = session?.user?.email;
+
+  if (!userEmail) return;
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -61,13 +69,14 @@ export async function POST(request: NextRequest) {
 
         // Add prefix in name if exist
         const k8sSafeName = toK8sName(dbName);
-        const name = DATABASE_NAME_PREFIX + "-" + k8sSafeName
+        const name = DATABASE_NAME_PREFIX + "-" + k8sSafeName;
         const params: DeploymentParams = {
           namespace: K8S_NAMESPACE,
           name,
           dbUri: uri,
           schema,
           accessControl,
+          user: { email: userEmail },
         };
 
         // STEP 1

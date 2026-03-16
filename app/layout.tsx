@@ -5,6 +5,7 @@ import { HelpLink } from "@/components/help-link";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ModeToggle } from "@/components/toggle-mode";
+import { SignOut } from "../components/signout-button";
 import Link from "next/link";
 import "./globals.css";
 
@@ -43,6 +44,7 @@ export default function RootLayout({
             </Link>
             <ModeToggle />
             <HelpLink />
+            <SignOut />
           </header>
           <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col p-4 pt-12">
             {children}

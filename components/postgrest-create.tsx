@@ -27,27 +27,26 @@ type AccessType = "public" | "authenticated" | "specific";
 type Props = {
   hasCertUrl: boolean;
   claimKey: string | undefined;
-  defaultHost?: string;
-  defaultPort?: string;
+  defaults?: Partial<ConnectionSchema>;
   defaultReadOnly: boolean;
 };
 
 export default function PostgRESTCreate({
   hasCertUrl,
   claimKey,
-  defaultPort,
-  defaultHost,
+  defaults,
   defaultReadOnly,
 }: Props) {
   // connection data
   const [connectionValues, setConnectionValues] =
     useState<ConnectionSchema | null>({
       database: "",
-      host: defaultHost ?? "",
+      host: "",
       password: "",
-      port: defaultPort ?? "5432",
+      port: "5432",
       ssl: false,
       user: "",
+      ...defaults,
     });
 
   const [connectionFormHidden, setConnectionFormHidden] = useState(false);
@@ -85,12 +84,12 @@ export default function PostgRESTCreate({
   } | null>(null);
 
   const readOnly = {
-    host: defaultReadOnly && defaultHost !== undefined,
-    port: defaultReadOnly && defaultPort !== undefined,
+    host: defaultReadOnly && defaults?.host !== undefined,
+    port: defaultReadOnly && defaults?.port !== undefined,
     user: false,
     password: false,
     database: false,
-    ssl: false,
+    ssl: defaultReadOnly && defaults?.ssl !== undefined,
   };
 
   // -------------------------------------------------------------------
@@ -126,12 +125,44 @@ export default function PostgRESTCreate({
       }
 
       setSchemas(res.schemas || []);
-      if(res.schemas.length === 1) {
-        setSelectedSchema(res.schemas[0])
+      if (res.schemas.length === 1) {
+        setSelectedSchema(res.schemas[0]);
       }
       setTestResult({ status: "success" });
       toast.success("Connection successful!");
       setConnectionFormHidden(true);
+    } catch (err: any) {
+      const message = err.message || "Connection failed";
+      setTestResult({ status: "error", message });
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshConnectionWithUri = async (uri: string) => {
+    setLoading(true);
+    setSchemas([]);
+
+    try {
+      const res = await fetchSchemas(uri);
+      if (!res.success) {
+        setTestResult({
+          status: "error",
+          message: res.error,
+        });
+        toast.error(res.error);
+        return;
+      }
+
+      setSchemas(res.schemas || []);
+
+      if (res.schemas.length === 1) {
+        setSelectedSchema(res.schemas[0]);
+      }
+
+      setTestResult({ status: "success" });
+      toast.success("Connection refreshed!");
     } catch (err: any) {
       const message = err.message || "Connection failed";
       setTestResult({ status: "error", message });
@@ -425,7 +456,7 @@ export default function PostgRESTCreate({
             )}
 
             {deployResult && (
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-green-800 dark:border-green-800 dark:bg-green-900/40 dark:text-green-100">
                 <div className="grid grid-cols-[150px_1fr] gap-x-3 gap-y-2">
                   <div className="text-right font-medium">Base URL:</div>
                   <a
@@ -466,6 +497,11 @@ export default function PostgRESTCreate({
         onEdit={() => {
           setConnectionFormHidden(false);
           setTestResult(null);
+        }}
+        onRefresh={async () => {
+          if (!connectionValues) return;
+          const uri = buildUri(connectionValues);
+          await handleRefreshConnectionWithUri(uri);
         }}
         onTest={async (values) => {
           setConnectionValues(values);

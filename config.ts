@@ -1,6 +1,17 @@
 import "server-only";
 import { z } from "zod";
 
+const boolSchema =z
+      .preprocess((val) => {
+        if (typeof val === "string") {
+          const lower = val.toLowerCase();
+          if (lower === "true") return true;
+          if (lower === "false") return false;
+        }
+        return val;
+      }, z.boolean())
+      .default(false)
+
 export const EnvSchema = z
   .object({
     // Postgrest config
@@ -17,16 +28,8 @@ export const EnvSchema = z
       .trim()
       .regex(/^\d+$/, "DEFAULT_PORT must be a number")
       .optional(),
-    DEFAULT_READ_ONLY: z
-      .preprocess((val) => {
-        if (typeof val === "string") {
-          const lower = val.toLowerCase();
-          if (lower === "true") return true;
-          if (lower === "false") return false;
-        }
-        return val;
-      }, z.boolean())
-      .default(false),
+    DEFAULT_SSL: boolSchema,
+    DEFAULT_READ_ONLY: boolSchema,
 
     // Database
     DATABASE_NAME_PREFIX: z
@@ -57,7 +60,7 @@ export const EnvSchema = z
     INGRESS_DOMAIN: z.string().trim().optional(), // If ingress use is required
 
     // Generic message to explain the app if needed
-    MESSAGE: z.string().optional()
+    MESSAGE: z.string().optional(),
   })
   .refine(
     (data) => {
