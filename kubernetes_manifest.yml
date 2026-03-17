@@ -50,7 +50,7 @@ spec:
             - name: AUTH_KEYCLOAK_ID
               value: public
             - name: AUTH_KEYCLOAK_ISSUER
-              value: https://keycloak.jtektrnd.net/realms/jtekt
+              value: http://10.115.1.100:30416/realms/jtekt
             - name: AUTH_URL
               value: http://self-service-api.higashikariya.jtektrnd.net
             - name: AUTH_TRUST_HOST
