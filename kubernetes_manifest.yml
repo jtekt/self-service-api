@@ -119,6 +119,14 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ${APPLICATION_NAME}
+  annotations:
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Self-Service Suite
+    gethomepage.dev/name: Self-service API
+    gethomepage.dev/description: Allows users to create API from a PostgreSQL on their own
+    gethomepage.dev/icon: http://gitlab.jtektrnd.net/uploads/-/system/project/avatar/3714/self-service-api.png
+    gethomepage.dev/pod-selector: app=${APPLICATION_NAME}
+
 spec:
   rules:
     - host: self-service-api.higashikariya.jtektrnd.net
