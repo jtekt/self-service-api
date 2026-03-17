@@ -51,6 +51,10 @@ spec:
               value: public
             - name: AUTH_KEYCLOAK_ISSUER
               value: https://keycloak.jtektrnd.net/realms/jtekt
+            - name: AUTH_URL
+              value: http://self-service-api.higashikariya.jtektrnd.net
+            - name: AUTH_TRUST_HOST
+              value: true
             - name: MESSAGE
               value: Database credentials can be generated in <a target="_blank" href="http://self-service-db.higashikariya.jtektrnd.net"><u><strong>Self-service DB</strong></u></a>. Use those credentials when connecting your database in the self-service form
           envFrom:
