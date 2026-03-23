@@ -28,7 +28,7 @@ spec:
             - name: PGRST_IMAGE
               value: postgrest/postgrest
             - name: PGRST_JWT_CERT_URL
-              value: http://10.115.1.100:30416/realms/jtekt/protocol/openid-connect/certs
+              value: https://keycloak.jtektrdmc.io/realms/jtekt/protocol/openid-connect/certs
             - name: PGRST_JWT_CLAIM_KEY
               value: email
             - name: DEFAULT_HOST
@@ -50,7 +50,7 @@ spec:
             - name: AUTH_KEYCLOAK_ID
               value: public
             - name: AUTH_KEYCLOAK_ISSUER
-              value: http://10.115.1.100:30416/realms/jtekt
+              value: https://keycloak.jtektrdmc.io/realms/jtekt
             - name: AUTH_URL
               value: https://self-service-api.higashikariya.jtektrnd.net
             - name: AUTH_TRUST_HOST
@@ -128,7 +128,7 @@ metadata:
     gethomepage.dev/group: Self-Service Suite
     gethomepage.dev/name: Self-service API
     gethomepage.dev/description: Allows users to create API from a PostgreSQL on their own
-    gethomepage.dev/icon: http://gitlab.jtektrnd.net/uploads/-/system/project/avatar/3714/self-service-api.png
+    gethomepage.dev/icon: https://gitlab.jtektrnd.net/uploads/-/system/project/avatar/3714/self-service-api.png
     gethomepage.dev/pod-selector: app=${APPLICATION_NAME}
 
     cert-manager.io/cluster-issuer: letsencrypt
