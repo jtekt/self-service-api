@@ -21,6 +21,13 @@ spec:
         app: ${APPLICATION_NAME}
     spec:
       serviceAccountName: ${K8S_SERVICE_ACCOUNT}
+      hostAliases:
+        - ip: "10.115.1.193"
+          hostnames:
+            - "keycloak.eks.jtektrnd.net"
+        - ip: "10.115.2.134"
+          hostnames:
+            - "keycloak.eks.jtektrnd.net"
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED}
@@ -28,7 +35,7 @@ spec:
             - name: PGRST_IMAGE
               value: postgrest/postgrest
             - name: PGRST_JWT_CERT_URL
-              value: https://keycloak.jtektrdmc.io/realms/jtekt/protocol/openid-connect/certs
+              value: https://keycloak.eks.jtektrnd.net/realms/jtekt/protocol/openid-connect/certs
             - name: PGRST_JWT_CLAIM_KEY
               value: email
             - name: DEFAULT_HOST
@@ -50,7 +57,7 @@ spec:
             - name: AUTH_KEYCLOAK_ID
               value: public
             - name: AUTH_KEYCLOAK_ISSUER
-              value: https://keycloak.jtektrdmc.io/realms/jtekt
+              value: https://keycloak.eks.jtektrnd.net/realms/jtekt
             - name: AUTH_URL
               value: https://self-service-api.higashikariya.jtektrnd.net
             - name: AUTH_TRUST_HOST
