@@ -70,19 +70,6 @@ spec:
       imagePullSecrets:
         - name: ${K8S_ECR_SECRET_NAME}
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${APPLICATION_NAME}
-  labels:
-    app: ${APPLICATION_NAME}
-spec:
-  type: NodePort
-  selector:
-    app: ${APPLICATION_NAME}
-  ports:
-    - port: 3000
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -119,6 +106,19 @@ roleRef:
   name: self-service-api-role
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${APPLICATION_NAME}
+  labels:
+    app: ${APPLICATION_NAME}
+spec:
+  type: ClusterIP
+  selector:
+    app: ${APPLICATION_NAME}
+  ports:
+    - port: 3000
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -138,7 +138,7 @@ spec:
   tls:
     - hosts:
         - self-service-api.higashikariya.jtektrnd.net
-      secretName: ${APPLICATION_NAME}-tls
+      secretName: self-service-api-tls
 
   rules:
     - host: self-service-api.higashikariya.jtektrnd.net
