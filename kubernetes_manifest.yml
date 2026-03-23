@@ -134,6 +134,7 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt
 
 spec:
+  ingressClassName: public
   tls:
     - hosts:
         - self-service-api.higashikariya.jtektrnd.net
