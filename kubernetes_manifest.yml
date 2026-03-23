@@ -131,14 +131,14 @@ metadata:
     gethomepage.dev/icon: http://gitlab.jtektrnd.net/uploads/-/system/project/avatar/3714/self-service-api.png
     gethomepage.dev/pod-selector: app=${APPLICATION_NAME}
 
-    # cert-manager.io/cluster-issuer: letsencrypt
+    cert-manager.io/cluster-issuer: letsencrypt
 
 spec:
-  # ingressClassName: public
-  # tls:
-  #   - hosts:
-  #       - self-service-api.higashikariya.jtektrnd.net
-  #     secretName: self-service-api-tls
+  ingressClassName: public
+  tls:
+    - hosts:
+        - self-service-api.higashikariya.jtektrnd.net
+      secretName: self-service-api-tls
 
   rules:
     - host: self-service-api.higashikariya.jtektrnd.net
