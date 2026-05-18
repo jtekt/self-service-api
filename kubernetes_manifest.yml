@@ -21,13 +21,6 @@ spec:
         app: ${APPLICATION_NAME}
     spec:
       serviceAccountName: ${K8S_SERVICE_ACCOUNT}
-      hostAliases:
-        - ip: "10.115.1.193"
-          hostnames:
-            - "keycloak.eks.jtektrnd.net"
-        - ip: "10.115.2.134"
-          hostnames:
-            - "keycloak.eks.jtektrnd.net"
       containers:
         - name: ${APPLICATION_NAME}
           image: ${CONTAINER_IMAGE_TAGGED}
