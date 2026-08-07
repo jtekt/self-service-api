@@ -51,9 +51,9 @@ spec:
               value: http
             - name: INGRESS_DOMAIN
               value: higashikariya.jtektrnd.net
-            - name: AUTH_KEYCLOAK_ID
+            - name: AUTH_OIDC_ID
               value: public
-            - name: AUTH_KEYCLOAK_ISSUER
+            - name: AUTH_OIDC_ISSUER
               value: https://keycloak.eks.jtektrnd.net/realms/jtekt
             - name: AUTH_URL
               value: https://self-service-api.higashikariya.jtektrnd.net
