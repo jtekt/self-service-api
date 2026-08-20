@@ -67,9 +67,9 @@ Expose APIs directly from cluster nodes.
 ```env
 DEPLOY_MODE=nodePort
 
-# Optional external address of the cluster
+# Optional external address of a cluster node
 # If empty the node IP will be used
-NODEPORT_EXTERNAL_ADDRESS=
+NODE_EXTERNAL_ADDRESS=
 ```
 
 ### Example URL
@@ -182,7 +182,7 @@ PGRST_JWT_CERT_URL
 
 | Variable                    | Required | Description                                           |
 | --------------------------- | -------- | ----------------------------------------------------- |
-| `NODEPORT_EXTERNAL_ADDRESS` | Optional | Override the detected node IP used in generated URLs. |
+| `NODE_EXTERNAL_ADDRESS` | Optional | Override the detected node IP used in generated URLs. |
 
 ### Ingress
 

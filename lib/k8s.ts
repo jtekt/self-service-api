@@ -5,8 +5,13 @@ import type { DeploymentParams } from "@/app/api/deploy/stream/route";
 
 const {
   DEPLOY_MODE,
-  NODEPORT_EXTERNAL_ADDRESS,
+  NODE_EXTERNAL_ADDRESS,
   INGRESS_DOMAIN,
+  INGRESS_CLASS_NAME,
+  INGRESS_ANNOTATIONS,
+  INGRESS_TLS_SECRET_NAME,
+  SERVICE_TYPE,
+  SERVICE_ANNOTATIONS,
   PGRST_IMAGE,
   PGRST_JWT_CERT_URL,
 } = Env;
@@ -162,7 +167,8 @@ export async function createService(
   params: DeploymentParams,
 ): Promise<k8s.V1Service> {
   const { namespace, name } = params;
-  const deployMode = DEPLOY_MODE;
+  const serviceType =
+    SERVICE_TYPE ?? (DEPLOY_MODE === "nodePort" ? "NodePort" : "ClusterIP");
 
   const service: k8s.V1Service = {
     apiVersion: "v1",
@@ -173,9 +179,10 @@ export async function createService(
       labels: {
         "app.kubernetes.io/name": name,
       },
+      ...(SERVICE_ANNOTATIONS ? { annotations: SERVICE_ANNOTATIONS } : {}),
     },
     spec: {
-      type: deployMode === "nodePort" ? "NodePort" : "ClusterIP",
+      type: serviceType,
       selector: {
         "app.kubernetes.io/name": name,
       },
@@ -227,8 +234,13 @@ export async function createIngress(params: DeploymentParams): Promise<string> {
       labels: {
         "app.kubernetes.io/name": name,
       },
+      ...(INGRESS_ANNOTATIONS ? { annotations: INGRESS_ANNOTATIONS } : {}),
     },
     spec: {
+      ...(INGRESS_CLASS_NAME ? { ingressClassName: INGRESS_CLASS_NAME } : {}),
+      ...(INGRESS_TLS_SECRET_NAME
+        ? { tls: [{ hosts: [hostname], secretName: INGRESS_TLS_SECRET_NAME }] }
+        : {}),
       rules: [
         {
           host: hostname,
@@ -275,7 +287,7 @@ export async function createIngress(params: DeploymentParams): Promise<string> {
 }
 
 export async function getNodeIp(): Promise<string | undefined> {
-  if (NODEPORT_EXTERNAL_ADDRESS) return NODEPORT_EXTERNAL_ADDRESS;
+  if (NODE_EXTERNAL_ADDRESS) return NODE_EXTERNAL_ADDRESS;
   const { items } = await coreApi.listNode();
   const node = items[0];
   const addr =

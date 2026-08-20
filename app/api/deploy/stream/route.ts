@@ -32,7 +32,7 @@ const {
   K8S_NAMESPACE,
   DEPLOY_MODE,
   DEPLOY_PROTOCOL,
-  NODEPORT_EXTERNAL_ADDRESS,
+  NODE_EXTERNAL_ADDRESS,
 } = Env;
 
 const BodySchema = z.object({
@@ -120,8 +120,8 @@ export async function POST(request: NextRequest) {
 
         // FINAL - Set apiUrl for NodePort mode if not already set
         if (DEPLOY_MODE === "nodePort" && nodePort) {
-          if (NODEPORT_EXTERNAL_ADDRESS) {
-            apiUrl = `${protocol}://${NODEPORT_EXTERNAL_ADDRESS}:${nodePort}`;
+          if (NODE_EXTERNAL_ADDRESS) {
+            apiUrl = `${protocol}://${NODE_EXTERNAL_ADDRESS}:${nodePort}`;
           } else {
             const nodeIp = await getNodeIp();
             if (nodeIp) {
