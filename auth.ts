@@ -8,6 +8,10 @@ const provider = {
   id: "oidc",
   name: "OIDC",
   type: "oidc",
+  // The default sign-in page derives a logo URL from the provider id
+  // (https://authjs.dev/img/providers/<id>.svg), which 404s for a generic
+  // "oidc" id since it isn't a known vendor slug. Point at a local icon instead.
+  style: { logo: "/oidc.svg", bg: "#fff" },
 } satisfies OIDCConfig<Record<string, unknown>>
 
 export const { handlers, signIn, signOut, auth } = NextAuth({

@@ -51,6 +51,12 @@ DATABASE_NAME_PREFIX=self-service-api
 # Kubernetes namespace
 K8S_NAMESPACE=default
 
+# Optional Service overrides
+# Type defaults to NodePort/ClusterIP based on DEPLOY_MODE if unset
+SERVICE_TYPE=
+# JSON object of annotations to add to the Service (e.g. cloud LB config)
+SERVICE_ANNOTATIONS=
+
 # Optional help link
 HELP_URL=
 
@@ -95,6 +101,16 @@ DEPLOY_MODE=ingress
 
 # Base domain used for generated APIs
 INGRESS_DOMAIN=subdomain.example.com
+
+# Optional ingress class (e.g. nginx, traefik). Uses the cluster default if unset
+INGRESS_CLASS_NAME=
+
+# JSON object of annotations to add to the Ingress (e.g. cert-manager, nginx rewrite rules)
+INGRESS_ANNOTATIONS=
+
+# Optional: enables TLS on the Ingress using this pre-existing secret
+# (e.g. a wildcard cert covering *.<INGRESS_DOMAIN>)
+INGRESS_TLS_SECRET_NAME=
 ```
 
 ### Generated hostname
@@ -180,15 +196,27 @@ PGRST_JWT_CERT_URL
 
 ### NodePort
 
-| Variable                    | Required | Description                                           |
-| --------------------------- | -------- | ----------------------------------------------------- |
+| Variable                | Required | Description                                           |
+| ------------------------ | -------- | ----------------------------------------------------- |
 | `NODE_EXTERNAL_ADDRESS` | Optional | Override the detected node IP used in generated URLs. |
+
+### Service
+
+Applies regardless of `DEPLOY_MODE`.
+
+| Variable               | Required | Default                                    | Description                                                              |
+| ----------------------- | -------- | -------------------------------------------- | --------------------------------------------------------------------------- |
+| `SERVICE_TYPE`         | No       | `NodePort`/`ClusterIP` based on `DEPLOY_MODE` | Overrides the Service type, e.g. `LoadBalancer`.                          |
+| `SERVICE_ANNOTATIONS`  | No       | —                                             | JSON object of annotations added to the Service (e.g. cloud LB config).   |
 
 ### Ingress
 
-| Variable         | Required | Condition                           | Description                                 |
-| ---------------- | -------- | ----------------------------------- | ------------------------------------------- |
-| `INGRESS_DOMAIN` | Yes*     | Required when `DEPLOY_MODE=ingress` | Base domain used to generate API hostnames. |
+| Variable                  | Required | Condition                           | Description                                                                          |
+| --------------------------- | -------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `INGRESS_DOMAIN`           | Yes*     | Required when `DEPLOY_MODE=ingress` | Base domain used to generate API hostnames.                                              |
+| `INGRESS_CLASS_NAME`       | No       | —                                    | Sets `spec.ingressClassName`. Uses the cluster default class if unset.                   |
+| `INGRESS_ANNOTATIONS`      | No       | —                                    | JSON object of annotations added to the Ingress (e.g. cert-manager, rewrite rules).      |
+| `INGRESS_TLS_SECRET_NAME`  | No       | —                                    | Enables TLS on the Ingress using this pre-existing secret (e.g. a wildcard cert).        |
 
 Example hostname:
 
