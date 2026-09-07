@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import { ModeToggle } from "@/components/toggle-mode";
 import { SignOut } from "../components/signout-button";
 import Link from "next/link";
+import { auth } from "@/auth";
 import "./globals.css";
 
 const fontSans = FontSans({
@@ -15,15 +16,17 @@ const fontSans = FontSans({
 });
 
 export const metadata: Metadata = {
-  title: "Self-service API",
+  title: "Self-Service API",
   description: "Deploy a REST API from a postgresql database easily",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -38,19 +41,17 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <header className="fixed top-0 right-0 left-0 z-50 flex h-12 items-center gap-2 border-b bg-background px-4">
-            <Link href="/" className="mr-auto text-2xl">
-              Self-service API
+          <header className="flex h-12 items-center gap-2 border-b px-4">
+            <Link href="/" className="mr-auto text-base font-semibold">
+              Self-Service API
             </Link>
             <ModeToggle />
             <HelpLink />
-            <SignOut />
+            {session && <SignOut />}
           </header>
-          <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col p-4 pt-12">
-            {children}
-          </main>
+          <main className="mx-auto w-full max-w-3xl flex-1 p-4">{children}</main>
           <footer className="border-t p-4 text-center text-sm">
-            Self-service API | JTEKT Corporation
+            Self-Service API | JTEKT Corporation
           </footer>
           <Toaster richColors />
         </ThemeProvider>
