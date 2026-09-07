@@ -17,6 +17,9 @@ const fontSans = FontSans({
 export const metadata: Metadata = {
   title: "Self-service API",
   description: "Deploy a REST API from a postgresql database easily",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({
