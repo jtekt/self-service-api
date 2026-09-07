@@ -16,9 +16,11 @@ const provider = {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [provider],
+  trustHost: true,
+  pages: { signIn: "/login" },
   callbacks: {
     authorized: async ({ auth }) => {
-      // Logged in users are authenticated, otherwise redirect to login page
+      // Logged in users are authenticated, otherwise redirect to /login
       return !!auth?.user
     },
   },

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const session = await auth()
 
-  if(!session) redirect("/api/auth/signin")
+  if (!session) redirect("/login")
 
   const hasCertUrl = !!Env.PGRST_JWT_CERT_URL;
   const claimKey = Env.PGRST_JWT_CLAIM_KEY;
