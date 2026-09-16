@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: self-service-api
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: self-service-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: self-service-api
+    spec:
+      serviceAccountName: self-service-api-sa
+      containers:
+        - name: self-service-api
+          image: ${CONTAINER_IMAGE_TAGGED}
+          env:
+            - name: PGRST_IMAGE
+              value: postgrest/postgrest
+
+            # Default database values shown in UI
+            - name: DEFAULT_HOST
+              value: pooler.postgresql
+            - name: DEFAULT_PORT
+              value: "5432"
+            - name: DEFAULT_SSL
+              value: "false"
+            - name: DEFAULT_READ_ONLY
+              value: "true"
+
+            # Prefix for deployed resources
+            - name: DATABASE_NAME_PREFIX
+              value: self-service-api
+
+            # K8s config
+            - name: K8S_NAMESPACE
+              value: self-service-postgrest
+
+            # Deployment
+            - name: DEPLOY_MODE
+              value: ingress
+            - name: DEPLOY_PROTOCOL
+              value: https
+
+            # Deployment - Ingress
+            - name: INGRESS_DOMAIN
+              value: ssc.jtektrnd.net
+            - name: INGRESS_CLASS_NAME
+              value: nginx
+
+            # Postgrest OIDC
+            - name: PGRST_JWT_CERT_URL
+              value: https://keycloak.eks.jtektrnd.net/realms/jtekt/protocol/openid-connect/certs
+            - name: PGRST_JWT_CLAIM_KEY
+              value: email
+
+            # Auth.js
+            - name: AUTH_OIDC_ID
+              value: public
+            - name: AUTH_OIDC_ISSUER
+              value: https://keycloak.eks.jtektrnd.net/realms/jtekt
+            - name: AUTH_URL
+              value: https://self-service-api.ssc.jtektrnd.net/
+            - name: AUTH_TRUST_HOST
+              value: "true"
+
+            # User message
+            - name: MESSAGE
+              value: 'Database credentials can be generated in <a target="_blank" href="https://self-service-db-cnpg.ssc.jtektrnd.net"><u><strong>Self-service DB</strong></u></a>. Use those credentials when connecting your database in the self-service form'
+          envFrom:
+            - secretRef:
+                name: self-service-api-es
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "10m"
+            limits:
+              memory: "500Mi"
+              cpu: "300m"
+      imagePullSecrets:
+        - name: ecr-credentials
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: self-service-api
+spec:
+  ports:
+    - port: 3000
+  selector:
+    app.kubernetes.io/name: self-service-api
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: self-service-api
+  annotations:
+    alb.ingress.kubernetes.io/success-codes: 200-399
+
+    # TODO: remove once configured at IngressClassParams level
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+
+
+    gethomepage.dev/enabled: "true"
+    gethomepage.dev/group: Self-Service Suite
+    gethomepage.dev/name: Self-service API
+    gethomepage.dev/description: Allows users to create API from a PostgreSQL on their own
+    gethomepage.dev/icon: http://gitlab.jtektrnd.net/uploads/-/system/project/avatar/3714/self-service-api.png
+spec:
+  rules:
+  - host: self-service-api.ssc.jtektrnd.net
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: self-service-api
+            port:
+              number: 3000
