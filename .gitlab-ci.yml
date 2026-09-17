@@ -10,6 +10,7 @@ variables:
   K8S_NAMESPACE: self-service-suite
 
 build:
+  image: moreillon/tdd-dind
   stage: build
   tags:
     - docker
