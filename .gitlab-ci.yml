@@ -10,14 +10,12 @@ variables:
   K8S_NAMESPACE: self-service-suite
 
 build:
-  image: moreillon/tdd-dind
   stage: build
   tags:
     - docker
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   before_script:
-    - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${AWS_ECR_PUBLIC_URL}
     # Create the ECR repository if it does not exist yet
     - >
       aws ecr-public create-repository --region us-east-1 --repository-name ${CONTAINER_IMAGE_NAME}
