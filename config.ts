@@ -79,6 +79,9 @@ export const EnvSchema = z
     // Help
     HELP_URL: z.url().optional(),
 
+    // Apps portal
+    APPS_URL: z.url().optional(),
+
     // Deployment
     DEPLOY_MODE: z.enum(["ingress", "nodePort"]).default("nodePort"),
     DEPLOY_PROTOCOL: z.enum(["http", "https"]).default("http"),

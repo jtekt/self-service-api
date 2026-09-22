@@ -68,6 +68,10 @@ spec:
             - name: AUTH_TRUST_HOST
               value: "true"
 
+            # Apps portal
+            - name: APPS_URL
+              value: https://homepage.ssc.jtektrnd.net
+
             # User message
             - name: MESSAGE
               value: 'Database credentials can be generated in <a target="_blank" href="https://self-service-db-cnpg.ssc.jtektrnd.net"><u><strong>Self-service DB</strong></u></a>. Use those credentials when connecting your database in the self-service form'

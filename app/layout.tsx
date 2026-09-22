@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter as FontSans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { HelpLink } from "@/components/help-link";
+import { AppsLink } from "@/components/apps-link";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { ModeToggle } from "@/components/toggle-mode";
@@ -51,6 +52,7 @@ export default async function RootLayout({
               Self-Service API
             </Link>
             <ModeToggle />
+            <AppsLink />
             <HelpLink />
             {session && <SignOut />}
           </header>
