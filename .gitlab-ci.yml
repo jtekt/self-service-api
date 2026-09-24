@@ -6,7 +6,8 @@ variables:
   APPLICATION_NAME: self-service-api
   CONTAINER_IMAGE_NAME: ${APPLICATION_NAME}
   CONTAINER_IMAGE: ${AWS_ECR_PUBLIC_URL}/${CONTAINER_IMAGE_NAME}
-  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_SHORT_SHA}
+  CONTAINER_IMAGE_TAGGED: ${CONTAINER_IMAGE}:${CI_COMMIT_TAG}
+  CONTAINER_IMAGE_LATEST: ${CONTAINER_IMAGE}:latest
   K8S_NAMESPACE: self-service-suite
 
 build:
@@ -14,23 +15,25 @@ build:
   tags:
     - docker
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: $CI_COMMIT_TAG
   before_script:
     # Create the ECR repository if it does not exist yet
     - >
       aws ecr-public create-repository --region us-east-1 --repository-name ${CONTAINER_IMAGE_NAME}
       || echo "Repository might have already existed"
   script:
-    - docker build -t ${CONTAINER_IMAGE_TAGGED} .
+    - docker build --build-arg APP_VERSION=${CI_COMMIT_TAG} -t ${CONTAINER_IMAGE_TAGGED} -t ${CONTAINER_IMAGE_LATEST} .
     - docker push ${CONTAINER_IMAGE_TAGGED}
+    - docker push ${CONTAINER_IMAGE_LATEST}
 
 deploy:
   stage: deploy
   tags:
     - docker
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: $CI_COMMIT_TAG
   script:
     - kubectl config use-context eks-internal-public/gitlab-agent-for-kubernetes:eks-internal-public
     - kubectl config set-context --current --namespace=${K8S_NAMESPACE}
     - envsubst < kubernetes_manifest.yml | kubectl apply -f -
+    - kubectl rollout status deployment/self-service-api --timeout=120s
