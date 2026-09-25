@@ -186,3 +186,18 @@ roleRef:
   kind: Role
   name: self-service-api-role
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: self-service-api
+spec:
+  parentRefs:
+    - name: eg
+      namespace: envoy-gateway-system
+  hostnames:
+    - self-service-api.ssc.jtektrnd.net
+  rules:
+    - backendRefs:
+        - name: self-service-api
+          port: 3000
