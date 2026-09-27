@@ -43,6 +43,7 @@ PGRST_JWT_CLAIM_KEY=email
 # Default database values shown in UI
 DEFAULT_HOST=postgres
 DEFAULT_PORT=5432
+DEFAULT_SSL=false
 DEFAULT_READ_ONLY=false
 
 # Prefix for deployed resources
@@ -50,6 +51,13 @@ DATABASE_NAME_PREFIX=self-service-api
 
 # Kubernetes namespace
 K8S_NAMESPACE=default
+
+# Login (Auth.js / next-auth v5, generic OIDC provider)
+AUTH_OIDC_ID=
+AUTH_OIDC_SECRET=
+AUTH_OIDC_ISSUER=
+AUTH_SECRET=
+AUTH_URL=
 
 # Optional Service overrides
 # Type defaults to NodePort/ClusterIP based on DEPLOY_MODE if unset
@@ -59,6 +67,9 @@ SERVICE_ANNOTATIONS=
 
 # Optional help link
 HELP_URL=
+
+# Optional link to the apps portal
+APPS_URL=
 
 # URL protocol used in generated endpoints
 DEPLOY_PROTOCOL=http
@@ -170,7 +181,20 @@ PGRST_JWT_CERT_URL
 | `K8S_NAMESPACE`        | No       | `default`             | Kubernetes namespace where services are deployed.                             |
 | `DATABASE_NAME_PREFIX` | No       | `self-service-api`    | Prefix for generated resources. Final name becomes `<prefix>-<databaseName>`. |
 | `HELP_URL`             | No       | —                     | Optional documentation link displayed in the UI.                              |
+| `APPS_URL`             | No       | —                     | Optional link to the apps portal displayed in the UI.                         |
 | `MESSAGE`              | No       | —                     | Optional message shown to users in the interface.                             |
+
+## Login (Auth.js / next-auth v5)
+
+Users sign in to this app through a generic OIDC provider. The login only controls who can use the app. Deployed APIs are not scoped per user.
+
+| Variable           | Required | Description                                       |
+| ------------------ | -------- | ------------------------------------------------- |
+| `AUTH_OIDC_ID`     | Yes      | OIDC client ID.                                   |
+| `AUTH_OIDC_SECRET` | Yes      | OIDC client secret.                               |
+| `AUTH_OIDC_ISSUER` | Yes      | OIDC issuer URL.                                  |
+| `AUTH_SECRET`      | Yes      | Secret used by Auth.js to sign session tokens.    |
+| `AUTH_URL`         | No       | Public URL of this app (used for OAuth callbacks). |
 
 ## Database Defaults
 
@@ -178,6 +202,7 @@ PGRST_JWT_CERT_URL
 | ------------------- | -------- | ------- | -------------------------------------------------------------- |
 | `DEFAULT_HOST`      | No       | —       | Default database host shown in the form.                       |
 | `DEFAULT_PORT`      | No       | —       | Default database port. Must be numeric.                        |
+| `DEFAULT_SSL`       | No       | `false` | Default value of the SSL option in the form.                   |
 | `DEFAULT_READ_ONLY` | No       | `false` | If true, default connection values cannot be edited in the UI. |
 
 ## Authentication (OIDC)
@@ -223,3 +248,7 @@ Example hostname:
 ```
 <database-name>.<INGRESS_DOMAIN>
 ```
+
+# Deployment
+
+A release is a `vX.Y.Z` tag on `main`. GitLab CI (`.gitlab-ci.yml`) builds the Docker image, pushes it to public ECR as [`public.ecr.aws/jtekt-corporation/self-service-api`](https://gallery.ecr.aws/jtekt-corporation/self-service-api) (`:<tag>` and `:latest`), and applies `kubernetes_manifest.yml` to the cluster. Pushing `main` without a tag deploys nothing.
