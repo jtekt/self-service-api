@@ -4,7 +4,9 @@ import { getDbUsername } from "./uri";
 import type { DeploymentParams } from "@/app/api/deploy/stream/route";
 
 const {
+  DATABASE_NAME_PREFIX,
   DEPLOY_MODE,
+  DEPLOY_PROTOCOL,
   NODE_EXTERNAL_ADDRESS,
   INGRESS_DOMAIN,
   INGRESS_CLASS_NAME,
@@ -159,7 +161,7 @@ export async function createDeployment(
       throw error;
     }
     // Update existing resource, keeping its users (e.g. co-owners added by
-    // hand). Callers must have checked ownership with getDeploymentUsers
+    // hand). Callers must have checked ownership with isUser
     const existing = await appsApi.readNamespacedDeployment({
       namespace,
       name,
@@ -176,26 +178,80 @@ export async function createDeployment(
   }
 }
 
-// Emails allowed to manage the API deployed as `name`, or null if there is no
-// such deployment yet
-export async function getDeploymentUsers(
+// Emails allowed to manage a deployed API, lowercased
+function getUsers(deployment: k8s.V1Deployment): string[] {
+  const users = deployment.metadata?.annotations?.[USERS_ANNOTATION] ?? "";
+  return users
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function isUser(deployment: k8s.V1Deployment, email: string) {
+  return getUsers(deployment).includes(email.toLowerCase());
+}
+
+// The API deployed as `name`, or null if there is none. Only returns
+// Deployments this app creates (named with DATABASE_NAME_PREFIX)
+export async function getApi(
   namespace: string,
   name: string,
-): Promise<string[] | null> {
+): Promise<k8s.V1Deployment | null> {
+  if (!name.startsWith(`${DATABASE_NAME_PREFIX}-`)) return null;
   try {
-    const deployment = await appsApi.readNamespacedDeployment({
-      namespace,
-      name,
-    });
-    const users = deployment.metadata?.annotations?.[USERS_ANNOTATION] ?? "";
-    return users
-      .split(",")
-      .map((email) => email.trim().toLowerCase())
-      .filter(Boolean);
+    return await appsApi.readNamespacedDeployment({ namespace, name });
   } catch (error: unknown) {
     if ((error as { code?: number }).code === 404) return null;
     throw error;
   }
+}
+
+// APIs the user is allowed to manage, newest first
+export async function listApisForUser(
+  namespace: string,
+  email: string,
+): Promise<k8s.V1Deployment[]> {
+  const { items } = await appsApi.listNamespacedDeployment({ namespace });
+  return items
+    .filter(
+      (deployment) =>
+        deployment.metadata?.name?.startsWith(`${DATABASE_NAME_PREFIX}-`) &&
+        !deployment.metadata.deletionTimestamp &&
+        isUser(deployment, email),
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.metadata?.creationTimestamp ?? 0).getTime() -
+        new Date(a.metadata?.creationTimestamp ?? 0).getTime(),
+    );
+}
+
+// Public URL of an API. Only known up front in ingress mode: in NodePort
+// mode it depends on the Service's allocated port
+export function getApiUrl(name: string): string | undefined {
+  if (DEPLOY_MODE !== "ingress" || !INGRESS_DOMAIN) return undefined;
+  return `${DEPLOY_PROTOCOL}://${name}.${INGRESS_DOMAIN}`;
+}
+
+// Deletes everything createDeployment & co. created for an API. Callers must
+// have checked ownership with isUser. Missing resources are skipped, so a
+// partially deployed or partially deleted API can still be cleaned up
+export async function deleteApi(namespace: string, name: string) {
+  const ignoreNotFound = (error: unknown) => {
+    if ((error as { code?: number }).code !== 404) throw error;
+  };
+  await networkingApi
+    .deleteNamespacedIngress({ namespace, name })
+    .catch(ignoreNotFound);
+  await coreApi
+    .deleteNamespacedService({ namespace, name })
+    .catch(ignoreNotFound);
+  await appsApi
+    .deleteNamespacedDeployment({ namespace, name })
+    .catch(ignoreNotFound);
+  await coreApi
+    .deleteNamespacedSecret({ namespace, name: `${name}-env` })
+    .catch(ignoreNotFound);
 }
 
 export async function createService(

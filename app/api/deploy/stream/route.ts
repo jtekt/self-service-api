@@ -6,7 +6,8 @@ import {
   getNodeIp,
   waitForDeploymentReady,
   createSecret,
-  getDeploymentUsers,
+  getApi,
+  isUser,
 } from "@/lib/k8s";
 import { Env } from "@/config";
 import { generateAuthFunction, generateDocsFunction } from "@/lib/database";
@@ -83,8 +84,8 @@ export async function POST(request: NextRequest) {
         // Names come from the database name alone, so another user's
         // database with the same name maps to the same API: never let them
         // overwrite it. Checked before anything is written.
-        const users = await getDeploymentUsers(K8S_NAMESPACE, name);
-        if (users && !users.includes(userEmail.toLowerCase())) {
+        const existing = await getApi(K8S_NAMESPACE, name);
+        if (existing && !isUser(existing, userEmail)) {
           throw new Error(
             `An API named "${name}" already exists and belongs to another user. Deploy from a database with a different name.`,
           );
