@@ -7,7 +7,7 @@ import {
   waitForDeploymentReady,
   createSecret,
   getApi,
-  isUser,
+  isOwner,
 } from "@/lib/k8s";
 import { Env } from "@/config";
 import { generateAuthFunction, generateDocsFunction } from "@/lib/database";
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         // database with the same name maps to the same API: never let them
         // overwrite it. Checked before anything is written.
         const existing = await getApi(K8S_NAMESPACE, name);
-        if (existing && !isUser(existing, userEmail)) {
+        if (existing && !isOwner(existing, userEmail)) {
           throw new Error(
             `An API named "${name}" already exists and belongs to another user. Deploy from a database with a different name.`,
           );

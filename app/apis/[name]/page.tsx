@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { Env } from "@/config";
 import { BackToApisLink } from "@/components/back-to-apis-link";
 import { DeleteApiButton } from "@/components/delete-api-button";
-import { getApi, getApiUrl, isUser } from "@/lib/k8s";
+import { getApi, getApiUrl, isOwner } from "@/lib/k8s";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function ApiPage({
   const { name } = await params;
   const api = await getApi(Env.K8S_NAMESPACE, name);
 
-  if (!api || !isUser(api, email) || api.metadata?.deletionTimestamp) {
+  if (!api || !isOwner(api, email) || api.metadata?.deletionTimestamp) {
     notFound();
   }
 

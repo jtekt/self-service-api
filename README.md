@@ -153,7 +153,9 @@ For every API created:
 
 # Ownership
 
-Each API is named after the database in the connection string (`<DATABASE_NAME_PREFIX>-<databaseName>`), so two databases with the same name map to the same API. The user who first deploys a name owns it: their email is stored in the Deployment's `deployment-manager.jtekt.co.jp/users` annotation, a comma-separated list that the Deployment Manager also reads. Only users in that list can redeploy an existing API. Redeploying keeps the list as it is, so co-owners can be added by editing the annotation.
+Each API is named after the database in the connection string (`<DATABASE_NAME_PREFIX>-<databaseName>`), so two databases with the same name map to the same API. The user who first deploys a name owns it: their email is stored in the Deployment's `self-service-api/owner` annotation, a comma-separated list of emails. Only users in that list can redeploy an existing API. Redeploying keeps the list as it is, so co-owners can be added by editing the annotation.
+
+Each Deployment also gets a `deployment-manager.jtekt.co.jp/users` annotation, so the API shows up in the Deployment Manager. The app never reads it for ownership.
 
 The same list decides what users see under **Your APIs** (`/apis`): each API's status, URL and documentation link, and a **Delete** button. Deleting removes the API's Ingress, Service, Deployment and Secret. The database is untouched, including the helper functions the app created in it (the access check and `docs`), since the app does not keep database credentials.
 

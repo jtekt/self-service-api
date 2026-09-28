@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { Env } from "@/config";
-import { deleteApi, getApi, isUser } from "@/lib/k8s";
+import { deleteApi, getApi, isOwner } from "@/lib/k8s";
 
 export interface DeleteApiState {
   error: string | null;
@@ -20,7 +20,7 @@ export async function deleteApiAction(
   try {
     // Never trust the client-supplied name: re-check ownership server-side
     const api = await getApi(Env.K8S_NAMESPACE, name);
-    if (!api || !isUser(api, email))
+    if (!api || !isOwner(api, email))
       return { error: `API "${name}" not found`, data: null };
 
     await deleteApi(Env.K8S_NAMESPACE, name);

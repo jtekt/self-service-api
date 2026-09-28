@@ -18,9 +18,14 @@ const {
   PGRST_JWT_CERT_URL,
 } = Env;
 
-// Users allowed to manage a deployed API: a comma-separated list of emails,
-// also read by the Deployment Manager
-const USERS_ANNOTATION = "deployment-manager.jtekt.co.jp/users";
+// Owners of a deployed API, allowed to see, redeploy and delete it: a
+// comma-separated list of emails
+const OWNER_ANNOTATION = "self-service-api/owner";
+
+// Users the Deployment Manager shows the API to. Written for its sake only:
+// ownership is never read from it
+const DEPLOYMENT_MANAGER_USERS_ANNOTATION =
+  "deployment-manager.jtekt.co.jp/users";
 
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
@@ -111,7 +116,8 @@ export async function createDeployment(
       name,
       namespace,
       annotations: {
-        [USERS_ANNOTATION]: user.email,
+        [OWNER_ANNOTATION]: user.email,
+        [DEPLOYMENT_MANAGER_USERS_ANNOTATION]: user.email,
       },
     },
     spec: {
@@ -160,15 +166,20 @@ export async function createDeployment(
       console.error(error);
       throw error;
     }
-    // Update existing resource, keeping its users (e.g. co-owners added by
-    // hand). Callers must have checked ownership with isUser
+    // Update existing resource, keeping its owners (e.g. co-owners added by
+    // hand) and Deployment Manager users. Callers must have checked
+    // ownership with isOwner
     const existing = await appsApi.readNamespacedDeployment({
       namespace,
       name,
     });
-    const existingUsers = existing.metadata?.annotations?.[USERS_ANNOTATION];
-    if (existingUsers)
-      deployment.metadata!.annotations![USERS_ANNOTATION] = existingUsers;
+    const annotations = deployment.metadata!.annotations!;
+    const owners = getOwners(existing);
+    if (owners.length) annotations[OWNER_ANNOTATION] = owners.join(",");
+    const deploymentManagerUsers =
+      existing.metadata?.annotations?.[DEPLOYMENT_MANAGER_USERS_ANNOTATION];
+    if (deploymentManagerUsers)
+      annotations[DEPLOYMENT_MANAGER_USERS_ANNOTATION] = deploymentManagerUsers;
 
     return await appsApi.replaceNamespacedDeployment({
       namespace,
@@ -178,17 +189,17 @@ export async function createDeployment(
   }
 }
 
-// Emails allowed to manage a deployed API, lowercased
-function getUsers(deployment: k8s.V1Deployment): string[] {
-  const users = deployment.metadata?.annotations?.[USERS_ANNOTATION] ?? "";
-  return users
+// Owners' emails, lowercased
+function getOwners(deployment: k8s.V1Deployment): string[] {
+  const owners = deployment.metadata?.annotations?.[OWNER_ANNOTATION] ?? "";
+  return owners
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
 }
 
-export function isUser(deployment: k8s.V1Deployment, email: string) {
-  return getUsers(deployment).includes(email.toLowerCase());
+export function isOwner(deployment: k8s.V1Deployment, email: string) {
+  return getOwners(deployment).includes(email.toLowerCase());
 }
 
 // The API deployed as `name`, or null if there is none. Only returns
@@ -217,7 +228,7 @@ export async function listApisForUser(
       (deployment) =>
         deployment.metadata?.name?.startsWith(`${DATABASE_NAME_PREFIX}-`) &&
         !deployment.metadata.deletionTimestamp &&
-        isUser(deployment, email),
+        isOwner(deployment, email),
     )
     .sort(
       (a, b) =>
@@ -234,7 +245,7 @@ export function getApiUrl(name: string): string | undefined {
 }
 
 // Deletes everything createDeployment & co. created for an API. Callers must
-// have checked ownership with isUser. Missing resources are skipped, so a
+// have checked ownership with isOwner. Missing resources are skipped, so a
 // partially deployed or partially deleted API can still be cleaned up
 export async function deleteApi(namespace: string, name: string) {
   const ignoreNotFound = (error: unknown) => {
