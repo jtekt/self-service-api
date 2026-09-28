@@ -40,17 +40,14 @@ spec:
             - name: K8S_NAMESPACE
               value: self-service-postgrest
 
-            # Deployment
-            - name: DEPLOY_MODE
-              value: ingress
-            - name: DEPLOY_PROTOCOL
-              value: https
-
-            # Deployment - Ingress
-            - name: INGRESS_DOMAIN
-              value: ssc.jtektrnd.net
+            # Exposure of deployed APIs: Ingress and HTTPRoute side by side
+            # while migrating to Gateway API
+            - name: API_URL_TEMPLATE
+              value: https://{name}.ssc.jtektrnd.net
             - name: INGRESS_CLASS_NAME
               value: nginx
+            - name: HTTPROUTE_PARENT_REFS
+              value: '[{"name":"eg","namespace":"envoy-gateway-system"}]'
 
             # Postgrest OIDC
             - name: PGRST_JWT_CERT_URL
@@ -167,6 +164,10 @@ rules:
 
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
+    verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]
+
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["httproutes"]
     verbs: ["create", "delete", "get", "list", "watch", "update", "patch"]
 
   - apiGroups: [""]

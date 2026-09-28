@@ -59,82 +59,46 @@ AUTH_OIDC_ISSUER=
 AUTH_SECRET=
 AUTH_URL=
 
-# Optional Service overrides
-# Type defaults to NodePort/ClusterIP based on DEPLOY_MODE if unset
-SERVICE_TYPE=
-# JSON object of annotations to add to the Service (e.g. cloud LB config)
-SERVICE_ANNOTATIONS=
-
 # Optional help link
 HELP_URL=
 
 # Optional link to the apps portal
 APPS_URL=
-
-# URL protocol used in generated endpoints
-DEPLOY_PROTOCOL=http
 ```
 
 ---
 
-# NodePort Deployment
+# Exposing the APIs
 
-Expose APIs directly from cluster nodes.
+Each deployed API gets a Service. Whether it also gets an Ingress, an HTTPRoute or both is set independently, so both can run side by side while migrating from Ingress to Gateway API:
 
-```env
-DEPLOY_MODE=nodePort
+- **Service:** always created. `SERVICE_TYPE` is `ClusterIP` by default, or `NodePort` or `LoadBalancer`.
+- **Ingress:** created when `INGRESS_CLASS_NAME` is set.
+- **HTTPRoute:** created when `HTTPROUTE_PARENT_REFS` is set.
 
-# Optional external address of a cluster node
-# If empty the node IP will be used
-NODE_EXTERNAL_ADDRESS=
-```
-
-### Example URL
-
-```
-http://<node-ip>:<nodePort>
-```
-
-Example
-
-```
-http://192.168.1.10:31234
-```
-
----
-
-# Ingress Deployment
-
-Expose APIs through a domain using an ingress controller.
+`API_URL_TEMPLATE` is the URL shown to users. `{name}` is replaced with the API's name (`<DATABASE_NAME_PREFIX>-<databaseName>`, also the name of its Kubernetes resources), and `{nodePort}` with its Service's node port. Ingresses and HTTPRoutes serve the API on the template's hostname. The app refuses to start if the combination doesn't make sense, e.g. an Ingress or HTTPRoute with a template lacking `{name}`.
 
 ```env
-DEPLOY_MODE=ingress
-
-# Base domain used for generated APIs
-INGRESS_DOMAIN=subdomain.example.com
-
-# Optional ingress class (e.g. nginx, traefik). Uses the cluster default if unset
-INGRESS_CLASS_NAME=
-
-# JSON object of annotations to add to the Ingress (e.g. cert-manager, nginx rewrite rules)
-INGRESS_ANNOTATIONS=
-
-# Optional: enables TLS on the Ingress using this pre-existing secret
-# (e.g. a wildcard cert covering *.<INGRESS_DOMAIN>)
-INGRESS_TLS_SECRET_NAME=
+# Ingress and HTTPRoute side by side
+API_URL_TEMPLATE=https://{name}.example.com
+INGRESS_CLASS_NAME=nginx
+INGRESS_TLS_SECRET_NAME=wildcard-example-com
+HTTPROUTE_PARENT_REFS=[{"name":"eg","namespace":"envoy-gateway-system"}]
 ```
 
-### Generated hostname
+```env
+# No ingress controller: expose APIs on a node's port
+SERVICE_TYPE=NodePort
+API_URL_TEMPLATE=http://10.0.0.5:{nodePort}
+```
 
-```
-<database-name>.<INGRESS_DOMAIN>
+```env
+# Cloud load balancer
+SERVICE_TYPE=LoadBalancer
+SERVICE_ANNOTATIONS={"service.beta.kubernetes.io/aws-load-balancer-scheme":"internet-facing"}
 ```
 
-Example
-
-```
-orders.example.com
-```
+With HTTPRoutes, TLS is configured on the Gateway's listener, which must also accept routes from `K8S_NAMESPACE` (`allowedRoutes.namespaces`).
 
 ---
 
@@ -146,7 +110,7 @@ For every API created:
 2. Schema is inspected
 3. PostgREST configuration is generated
 4. Kubernetes Deployment is created
-5. Service or Ingress is created
+5. Service, and Ingress and/or HTTPRoute, are created
 6. API endpoint is returned to the user
 
 ---
@@ -222,42 +186,19 @@ Users sign in to this app through a generic OIDC provider. The login only contro
 | `PGRST_JWT_CERT_URL`  | Optional | Auth enabled | JWKS endpoint used to validate JWT tokens.          |
 | `PGRST_JWT_CLAIM_KEY` | Optional | Auth enabled | JWT claim used to identify the user (e.g. `email`). |
 
-## Deployment
+## Exposure
 
-| Variable          | Required | Default    | Description                               |
-| ----------------- | -------- | ---------- | ----------------------------------------- |
-| `DEPLOY_MODE`     | No       | `nodePort` | Deployment type: `nodePort` or `ingress`. |
-| `DEPLOY_PROTOCOL` | No       | `http`     | Protocol used when generating URLs.       |
+See [Exposing the APIs](#exposing-the-apis).
 
-### NodePort
-
-| Variable                | Required | Description                                           |
-| ------------------------ | -------- | ----------------------------------------------------- |
-| `NODE_EXTERNAL_ADDRESS` | Optional | Override the detected node IP used in generated URLs. |
-
-### Service
-
-Applies regardless of `DEPLOY_MODE`.
-
-| Variable               | Required | Default                                    | Description                                                              |
-| ----------------------- | -------- | -------------------------------------------- | --------------------------------------------------------------------------- |
-| `SERVICE_TYPE`         | No       | `NodePort`/`ClusterIP` based on `DEPLOY_MODE` | Overrides the Service type, e.g. `LoadBalancer`.                          |
-| `SERVICE_ANNOTATIONS`  | No       | —                                             | JSON object of annotations added to the Service (e.g. cloud LB config).   |
-
-### Ingress
-
-| Variable                  | Required | Condition                           | Description                                                                          |
-| --------------------------- | -------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `INGRESS_DOMAIN`           | Yes*     | Required when `DEPLOY_MODE=ingress` | Base domain used to generate API hostnames.                                              |
-| `INGRESS_CLASS_NAME`       | No       | —                                    | Sets `spec.ingressClassName`. Uses the cluster default class if unset.                   |
-| `INGRESS_ANNOTATIONS`      | No       | —                                    | JSON object of annotations added to the Ingress (e.g. cert-manager, rewrite rules).      |
-| `INGRESS_TLS_SECRET_NAME`  | No       | —                                    | Enables TLS on the Ingress using this pre-existing secret (e.g. a wildcard cert).        |
-
-Example hostname:
-
-```
-<database-name>.<INGRESS_DOMAIN>
-```
+| Variable                  | Default     | Description                                                                                            |
+| ------------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| `SERVICE_TYPE`            | `ClusterIP` | `ClusterIP`, `NodePort` or `LoadBalancer`.                                                             |
+| `SERVICE_ANNOTATIONS`     | —           | JSON object of annotations added to the Service (e.g. cloud LB config).                                |
+| `API_URL_TEMPLATE`        | —           | URL shown to users, with `{name}` and (NodePort only) `{nodePort}`. Required for Ingress and HTTPRoute. |
+| `INGRESS_CLASS_NAME`      | —           | Creates an Ingress with this `spec.ingressClassName`. No Ingress if unset.                             |
+| `INGRESS_ANNOTATIONS`     | —           | JSON object of annotations added to the Ingress (e.g. cert-manager, rewrite rules).                    |
+| `INGRESS_TLS_SECRET_NAME` | —           | Enables TLS on the Ingress using this pre-existing secret (e.g. a wildcard cert).                      |
+| `HTTPROUTE_PARENT_REFS`   | —           | Creates an HTTPRoute attached to these Gateways (JSON array of parentRefs). No HTTPRoute if unset.     |
 
 # Deployment
 

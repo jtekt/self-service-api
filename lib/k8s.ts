@@ -5,13 +5,11 @@ import type { DeploymentParams } from "@/app/api/deploy/stream/route";
 
 const {
   DATABASE_NAME_PREFIX,
-  DEPLOY_MODE,
-  DEPLOY_PROTOCOL,
-  NODE_EXTERNAL_ADDRESS,
-  INGRESS_DOMAIN,
+  API_URL_TEMPLATE,
   INGRESS_CLASS_NAME,
   INGRESS_ANNOTATIONS,
   INGRESS_TLS_SECRET_NAME,
+  HTTPROUTE_PARENT_REFS,
   SERVICE_TYPE,
   SERVICE_ANNOTATIONS,
   PGRST_IMAGE,
@@ -32,6 +30,16 @@ kc.loadFromDefault();
 const coreApi = kc.makeApiClient(k8s.CoreV1Api);
 const appsApi = kc.makeApiClient(k8s.AppsV1Api);
 const networkingApi = kc.makeApiClient(k8s.NetworkingV1Api);
+const customObjectsApi = kc.makeApiClient(k8s.CustomObjectsApi);
+
+const HTTPROUTE = {
+  group: "gateway.networking.k8s.io",
+  version: "v1",
+  plural: "httproutes",
+};
+
+const isNotFound = (error: unknown) =>
+  (error as { code?: number }).code === 404;
 
 export async function createSecret(
   params: DeploymentParams,
@@ -237,11 +245,38 @@ export async function listApisForUser(
     );
 }
 
-// Public URL of an API. Only known up front in ingress mode: in NodePort
-// mode it depends on the Service's allocated port
-export function getApiUrl(name: string): string | undefined {
-  if (DEPLOY_MODE !== "ingress" || !INGRESS_DOMAIN) return undefined;
-  return `${DEPLOY_PROTOCOL}://${name}.${INGRESS_DOMAIN}`;
+// API_URL_TEMPLATE filled in for one API, or undefined if the template is
+// unset or needs a node port the API doesn't have
+function renderApiUrl(name: string, nodePort?: number): string | undefined {
+  if (!API_URL_TEMPLATE) return undefined;
+  if (API_URL_TEMPLATE.includes("{nodePort}") && !nodePort) return undefined;
+  return API_URL_TEMPLATE.replaceAll("{name}", name).replaceAll(
+    "{nodePort}",
+    String(nodePort),
+  );
+}
+
+// Hostname Ingresses and HTTPRoutes serve an API on. config.ts guarantees
+// API_URL_TEMPLATE is a URL containing {name} whenever either is enabled
+function getApiHostname(name: string): string {
+  return new URL(renderApiUrl(name)!).hostname;
+}
+
+// Public URL of an API, or undefined if API_URL_TEMPLATE doesn't give one
+export async function getApiUrl(
+  namespace: string,
+  name: string,
+  service?: k8s.V1Service,
+): Promise<string | undefined> {
+  if (!API_URL_TEMPLATE?.includes("{nodePort}")) return renderApiUrl(name);
+
+  try {
+    service ??= await coreApi.readNamespacedService({ namespace, name });
+  } catch (error: unknown) {
+    if (isNotFound(error)) return undefined;
+    throw error;
+  }
+  return renderApiUrl(name, service.spec?.ports?.[0]?.nodePort);
 }
 
 // Deletes everything createDeployment & co. created for an API. Callers must
@@ -249,8 +284,19 @@ export function getApiUrl(name: string): string | undefined {
 // partially deployed or partially deleted API can still be cleaned up
 export async function deleteApi(namespace: string, name: string) {
   const ignoreNotFound = (error: unknown) => {
-    if ((error as { code?: number }).code !== 404) throw error;
+    if (!isNotFound(error)) throw error;
   };
+  // Always attempted, so routes left over from an earlier configuration go
+  // too. Without HTTPRoute support configured, the cluster may lack the
+  // Gateway API or the app the permission for it: skip those errors then
+  await customObjectsApi
+    .deleteNamespacedCustomObject({ ...HTTPROUTE, namespace, name })
+    .catch((error: unknown) => {
+      if (isNotFound(error)) return;
+      if (!HTTPROUTE_PARENT_REFS && (error as { code?: number }).code === 403)
+        return;
+      throw error;
+    });
   await networkingApi
     .deleteNamespacedIngress({ namespace, name })
     .catch(ignoreNotFound);
@@ -269,8 +315,7 @@ export async function createService(
   params: DeploymentParams,
 ): Promise<k8s.V1Service> {
   const { namespace, name } = params;
-  const serviceType =
-    SERVICE_TYPE ?? (DEPLOY_MODE === "nodePort" ? "NodePort" : "ClusterIP");
+  const serviceType = SERVICE_TYPE;
 
   const service: k8s.V1Service = {
     apiVersion: "v1",
@@ -318,14 +363,10 @@ export async function createService(
   }
 }
 
-export async function createIngress(params: DeploymentParams): Promise<string> {
+export async function createIngress(params: DeploymentParams): Promise<void> {
   const { namespace, name } = params;
 
-  if (!INGRESS_DOMAIN) {
-    throw new Error("INGRESS_DOMAIN is required for ingress mode");
-  }
-
-  const hostname = `${name}.${INGRESS_DOMAIN}`;
+  const hostname = getApiHostname(name);
 
   const ingress: k8s.V1Ingress = {
     apiVersion: "networking.k8s.io/v1",
@@ -384,18 +425,54 @@ export async function createIngress(params: DeploymentParams): Promise<string> {
       body: ingress,
     });
   }
-
-  return hostname;
 }
 
-export async function getNodeIp(): Promise<string | undefined> {
-  if (NODE_EXTERNAL_ADDRESS) return NODE_EXTERNAL_ADDRESS;
-  const { items } = await coreApi.listNode();
-  const node = items[0];
-  const addr =
-    node.status?.addresses?.find((a) => a.type === "ExternalIP") ||
-    node.status?.addresses?.find((a) => a.type === "InternalIP");
-  return addr?.address;
+export async function createHTTPRoute(params: DeploymentParams) {
+  const { namespace, name } = params;
+
+  const httpRoute = {
+    apiVersion: `${HTTPROUTE.group}/${HTTPROUTE.version}`,
+    kind: "HTTPRoute",
+    metadata: {
+      name,
+      namespace,
+      labels: {
+        "app.kubernetes.io/name": name,
+      },
+    } as k8s.V1ObjectMeta,
+    spec: {
+      parentRefs: HTTPROUTE_PARENT_REFS,
+      hostnames: [getApiHostname(name)],
+      rules: [{ backendRefs: [{ name, port: 3000 }] }],
+    },
+  };
+
+  try {
+    await customObjectsApi.createNamespacedCustomObject({
+      ...HTTPROUTE,
+      namespace,
+      body: httpRoute,
+    });
+  } catch (error: unknown) {
+    if ((error as { code?: number }).code !== 409) {
+      console.error(error);
+      throw error;
+    }
+    // Update existing resource. Unlike built-in resources, custom resources
+    // can only be replaced with their current resourceVersion
+    const existing = (await customObjectsApi.getNamespacedCustomObject({
+      ...HTTPROUTE,
+      namespace,
+      name,
+    })) as { metadata?: k8s.V1ObjectMeta };
+    httpRoute.metadata.resourceVersion = existing.metadata?.resourceVersion;
+    await customObjectsApi.replaceNamespacedCustomObject({
+      ...HTTPROUTE,
+      namespace,
+      name,
+      body: httpRoute,
+    });
+  }
 }
 
 export async function waitForDeploymentReady(

@@ -3,7 +3,8 @@ import {
   createDeployment,
   createService,
   createIngress,
-  getNodeIp,
+  createHTTPRoute,
+  getApiUrl,
   waitForDeploymentReady,
   createSecret,
   getApi,
@@ -32,9 +33,8 @@ export interface DeploymentParams {
 const {
   DATABASE_NAME_PREFIX,
   K8S_NAMESPACE,
-  DEPLOY_MODE,
-  DEPLOY_PROTOCOL,
-  NODE_EXTERNAL_ADDRESS,
+  INGRESS_CLASS_NAME,
+  HTTPROUTE_PARENT_REFS,
 } = Env;
 
 const BodySchema = z.object({
@@ -107,20 +107,18 @@ export async function POST(request: NextRequest) {
         sendJson({ type: "progress", message: "Creating Deployment..." });
         await createDeployment(params);
 
-        let apiUrl: string | undefined = undefined;
-
         // STEP 4
         sendJson({ type: "progress", message: "Creating Service..." });
         const service = await createService(params);
 
-        const nodePort = service.spec?.ports?.[0]?.nodePort;
-        const protocol = DEPLOY_PROTOCOL;
-
         // STEP 5
-        if (DEPLOY_MODE === "ingress") {
+        if (INGRESS_CLASS_NAME) {
           sendJson({ type: "progress", message: "Creating Ingress..." });
-          const hostname = await createIngress(params);
-          apiUrl = `${protocol}://${hostname}`;
+          await createIngress(params);
+        }
+        if (HTTPROUTE_PARENT_REFS) {
+          sendJson({ type: "progress", message: "Creating HTTPRoute..." });
+          await createHTTPRoute(params);
         }
 
         // STEP 6
@@ -130,17 +128,7 @@ export async function POST(request: NextRequest) {
         });
         await waitForDeploymentReady(params.namespace, params.name);
 
-        // FINAL - Set apiUrl for NodePort mode if not already set
-        if (DEPLOY_MODE === "nodePort" && nodePort) {
-          if (NODE_EXTERNAL_ADDRESS) {
-            apiUrl = `${protocol}://${NODE_EXTERNAL_ADDRESS}:${nodePort}`;
-          } else {
-            const nodeIp = await getNodeIp();
-            if (nodeIp) {
-              apiUrl = `${protocol}://${nodeIp}:${nodePort}`;
-            }
-          }
-        }
+        const apiUrl = await getApiUrl(params.namespace, params.name, service);
 
         sendJson({
           type: "complete",

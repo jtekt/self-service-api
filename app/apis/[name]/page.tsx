@@ -23,7 +23,7 @@ export default async function ApiPage({
     notFound();
   }
 
-  const url = getApiUrl(name);
+  const url = await getApiUrl(Env.K8S_NAMESPACE, name);
   const ready =
     !!api.status?.replicas && api.status.readyReplicas === api.status.replicas;
 

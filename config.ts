@@ -1,16 +1,16 @@
 import "server-only";
 import { z } from "zod";
 
-const boolSchema =z
-      .preprocess((val) => {
-        if (typeof val === "string") {
-          const lower = val.toLowerCase();
-          if (lower === "true") return true;
-          if (lower === "false") return false;
-        }
-        return val;
-      }, z.boolean())
-      .default(false)
+const boolSchema = z
+  .preprocess((val) => {
+    if (typeof val === "string") {
+      const lower = val.toLowerCase();
+      if (lower === "true") return true;
+      if (lower === "false") return false;
+    }
+    return val;
+  }, z.boolean())
+  .default(false);
 
 // Accepts a JSON object of string key/values, e.g. {"cert-manager.io/cluster-issuer":"letsencrypt"}
 const jsonAnnotationsSchema = z
@@ -37,6 +37,48 @@ const jsonAnnotationsSchema = z
       return z.NEVER;
     }
   });
+
+// Accepts a JSON array of Gateway API parentRefs, e.g.
+// [{"name":"eg","namespace":"envoy-gateway-system"}]
+const parentRefsSchema = z
+  .string()
+  .trim()
+  .optional()
+  .transform((val, ctx) => {
+    if (!val) return undefined;
+    const parsed = z
+      .array(
+        z.object({
+          name: z.string().min(1),
+          namespace: z.string().min(1).optional(),
+          sectionName: z.string().min(1).optional(),
+          port: z.number().int().optional(),
+        }),
+      )
+      .min(1)
+      .safeParse(
+        (() => {
+          try {
+            return JSON.parse(val);
+          } catch {
+            return undefined;
+          }
+        })(),
+      );
+    if (!parsed.success) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          'must be a JSON array of parentRefs, e.g. [{"name":"eg","namespace":"envoy-gateway-system"}]',
+      });
+      return z.NEVER;
+    }
+    return parsed.data;
+  });
+
+// Fills an API_URL_TEMPLATE with dummy values, to validate it as a URL
+const sampleUrl = (template: string) =>
+  template.replaceAll("{name}", "api").replaceAll("{nodePort}", "30000");
 
 export const EnvSchema = z
   .object({
@@ -73,7 +115,10 @@ export const EnvSchema = z
     K8S_NAMESPACE: z.string().trim().min(1).default("default"), // Where the apps will be deployed
 
     // Service config
-    SERVICE_TYPE: z.enum(["ClusterIP", "NodePort", "LoadBalancer"]).optional(), // Overrides the type derived from DEPLOY_MODE
+    SERVICE_TYPE: z.preprocess(
+      (val) => (val === "" ? undefined : val), // "SERVICE_TYPE=" in .env
+      z.enum(["ClusterIP", "NodePort", "LoadBalancer"]).default("ClusterIP"),
+    ),
     SERVICE_ANNOTATIONS: jsonAnnotationsSchema,
 
     // Help
@@ -82,35 +127,57 @@ export const EnvSchema = z
     // Apps portal
     APPS_URL: z.url().optional(),
 
-    // Deployment
-    DEPLOY_MODE: z.enum(["ingress", "nodePort"]).default("nodePort"),
-    DEPLOY_PROTOCOL: z.enum(["http", "https"]).default("http"),
+    // URL shown to users. {name} is the API's name (also its Kubernetes
+    // resources' name); {nodePort} its Service's node port, for NodePort
+    // setups. Ingress and HTTPRoute hostnames come from it
+    API_URL_TEMPLATE: z.string().trim().optional(),
 
-    // Deployment - NodePort
-    NODE_EXTERNAL_ADDRESS: z.string().trim().optional(), // For NodePort mode (if not set will use the detected node IP)
-
-    // Deployment - Ingress
-    INGRESS_DOMAIN: z.string().trim().optional(), // If ingress use is required
+    // Ingress: created only if INGRESS_CLASS_NAME is set
     INGRESS_CLASS_NAME: z.string().trim().optional(), // e.g. "nginx", "traefik"
     INGRESS_ANNOTATIONS: jsonAnnotationsSchema,
-    INGRESS_TLS_SECRET_NAME: z.string().trim().optional(), // Enables TLS on the Ingress using this pre-existing secret (e.g. a wildcard cert covering INGRESS_DOMAIN)
+    INGRESS_TLS_SECRET_NAME: z.string().trim().optional(), // Enables TLS on the Ingress using this pre-existing secret (e.g. a wildcard cert)
+
+    // HTTPRoute (Gateway API): created only if HTTPROUTE_PARENT_REFS is set
+    HTTPROUTE_PARENT_REFS: parentRefsSchema,
 
     // Generic message to explain the app if needed
     MESSAGE: z.string().optional(),
   })
-  .refine(
-    (data) => {
-      // If using ingress mode, INGRESS_DOMAIN is required
-      if (data.DEPLOY_MODE === "ingress" && !data.INGRESS_DOMAIN) {
-        return false;
-      }
-      return true;
-    },
-    {
-      message: "INGRESS_DOMAIN is required when DEPLOY_MODE is 'ingress'",
-      path: ["INGRESS_DOMAIN"],
-    },
-  );
+  .superRefine((data, ctx) => {
+    const template = data.API_URL_TEMPLATE;
+    const routed = !!data.INGRESS_CLASS_NAME || !!data.HTTPROUTE_PARENT_REFS;
+
+    if (template) {
+      if (!URL.canParse(sampleUrl(template)))
+        ctx.addIssue({
+          code: "custom",
+          path: ["API_URL_TEMPLATE"],
+          message: "must be a URL, e.g. https://{name}.example.com",
+        });
+      if (template.includes("{nodePort}") && data.SERVICE_TYPE !== "NodePort")
+        ctx.addIssue({
+          code: "custom",
+          path: ["API_URL_TEMPLATE"],
+          message: "{nodePort} requires SERVICE_TYPE=NodePort",
+        });
+    }
+
+    // Ingress and HTTPRoute serve each API on its own hostname
+    if (routed && !template?.includes("{name}"))
+      ctx.addIssue({
+        code: "custom",
+        path: ["API_URL_TEMPLATE"],
+        message:
+          "must contain {name} when INGRESS_CLASS_NAME or HTTPROUTE_PARENT_REFS is set, e.g. https://{name}.example.com",
+      });
+    if (routed && template?.includes("{nodePort}"))
+      ctx.addIssue({
+        code: "custom",
+        path: ["API_URL_TEMPLATE"],
+        message:
+          "cannot contain {nodePort} when INGRESS_CLASS_NAME or HTTPROUTE_PARENT_REFS is set",
+      });
+  });
 
 // Parse + apply defaults
 export const Env = EnvSchema.parse(process.env);
