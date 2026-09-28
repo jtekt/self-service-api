@@ -21,6 +21,7 @@ import { TablesViewer } from "./table-viewer";
 import type { AccessControl, ConnectionSchema } from "@/lib/validation";
 
 import { ConnectionForm } from "@/components/connection/ConnectionForm";
+import { ExternalLink } from "@/components/external-link";
 
 type AccessType = "public" | "authenticated" | "specific";
 
@@ -459,22 +460,14 @@ export default function PostgRESTCreate({
               <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-green-800 dark:border-green-800 dark:bg-green-900/40 dark:text-green-100">
                 <div className="grid grid-cols-[150px_1fr] gap-x-3 gap-y-2">
                   <div className="text-right font-medium">Base URL:</div>
-                  <a
-                    href={deployResult.apiUrl}
-                    className="break-all text-blue-600 underline"
-                    target="_blank"
-                  >
+                  <ExternalLink href={deployResult.apiUrl}>
                     {deployResult.apiUrl}
-                  </a>
+                  </ExternalLink>
 
                   <div className="text-right font-medium">Documentation:</div>
-                  <a
-                    href={`${deployResult.apiUrl}/rpc/docs`}
-                    className="break-all text-blue-600 underline"
-                    target="_blank"
-                  >
+                  <ExternalLink href={`${deployResult.apiUrl}/rpc/docs`}>
                     {deployResult.apiUrl}/rpc/docs
-                  </a>
+                  </ExternalLink>
                 </div>
               </div>
             )}

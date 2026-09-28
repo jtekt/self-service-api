@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { Env } from "@/config";
 import { BackToApisLink } from "@/components/back-to-apis-link";
 import { DeleteApiButton } from "@/components/delete-api-button";
+import { ExternalLink } from "@/components/external-link";
 import { getApi, getApiUrl, isOwner } from "@/lib/k8s";
 
 export const dynamic = "force-dynamic";
@@ -41,24 +42,14 @@ export default async function ApiPage({
           <>
             <dt className="font-medium">Base URL</dt>
             <dd>
-              <a
-                href={url}
-                target="_blank"
-                className="break-all text-blue-600 underline"
-              >
-                {url}
-              </a>
+              <ExternalLink href={url}>{url}</ExternalLink>
             </dd>
 
             <dt className="font-medium">Documentation</dt>
             <dd>
-              <a
-                href={`${url}/rpc/docs`}
-                target="_blank"
-                className="break-all text-blue-600 underline"
-              >
+              <ExternalLink href={`${url}/rpc/docs`}>
                 {url}/rpc/docs
-              </a>
+              </ExternalLink>
             </dd>
           </>
         )}
