@@ -151,6 +151,12 @@ For every API created:
 
 ---
 
+# Ownership
+
+Each API is named after the database in the connection string (`<DATABASE_NAME_PREFIX>-<databaseName>`), so two databases with the same name map to the same API. The user who first deploys a name owns it: their email is stored in the Deployment's `deployment-manager.jtekt.co.jp/users` annotation, a comma-separated list that the Deployment Manager also reads. Only users in that list can redeploy an existing API. Redeploying keeps the list as it is, so co-owners can be added by editing the annotation.
+
+---
+
 # Access Modes
 
 The deployed API can be configured as:

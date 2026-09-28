@@ -6,6 +6,7 @@ import {
   getNodeIp,
   waitForDeploymentReady,
   createSecret,
+  getDeploymentUsers,
 } from "@/lib/k8s";
 import { Env } from "@/config";
 import { generateAuthFunction, generateDocsFunction } from "@/lib/database";
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   const userEmail = session?.user?.email;
 
-  if (!userEmail) return;
+  if (!userEmail) return new Response("Unauthorized", { status: 401 });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -78,6 +79,16 @@ export async function POST(request: NextRequest) {
           accessControl,
           user: { email: userEmail },
         };
+
+        // Names come from the database name alone, so another user's
+        // database with the same name maps to the same API: never let them
+        // overwrite it. Checked before anything is written.
+        const users = await getDeploymentUsers(K8S_NAMESPACE, name);
+        if (users && !users.includes(userEmail.toLowerCase())) {
+          throw new Error(
+            `An API named "${name}" already exists and belongs to another user. Deploy from a database with a different name.`,
+          );
+        }
 
         // STEP 1
         sendJson({ type: "progress", message: "Creating Database access..." });

@@ -16,6 +16,10 @@ const {
   PGRST_JWT_CERT_URL,
 } = Env;
 
+// Users allowed to manage a deployed API: a comma-separated list of emails,
+// also read by the Deployment Manager
+const USERS_ANNOTATION = "deployment-manager.jtekt.co.jp/users";
+
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
 const coreApi = kc.makeApiClient(k8s.CoreV1Api);
@@ -105,7 +109,7 @@ export async function createDeployment(
       name,
       namespace,
       annotations: {
-        "deployment-manager.jtekt.co.jp/users": user.email,
+        [USERS_ANNOTATION]: user.email,
       },
     },
     spec: {
@@ -154,12 +158,43 @@ export async function createDeployment(
       console.error(error);
       throw error;
     }
-    // Update existing resource
+    // Update existing resource, keeping its users (e.g. co-owners added by
+    // hand). Callers must have checked ownership with getDeploymentUsers
+    const existing = await appsApi.readNamespacedDeployment({
+      namespace,
+      name,
+    });
+    const existingUsers = existing.metadata?.annotations?.[USERS_ANNOTATION];
+    if (existingUsers)
+      deployment.metadata!.annotations![USERS_ANNOTATION] = existingUsers;
+
     return await appsApi.replaceNamespacedDeployment({
       namespace,
       name,
       body: deployment,
     });
+  }
+}
+
+// Emails allowed to manage the API deployed as `name`, or null if there is no
+// such deployment yet
+export async function getDeploymentUsers(
+  namespace: string,
+  name: string,
+): Promise<string[] | null> {
+  try {
+    const deployment = await appsApi.readNamespacedDeployment({
+      namespace,
+      name,
+    });
+    const users = deployment.metadata?.annotations?.[USERS_ANNOTATION] ?? "";
+    return users
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+  } catch (error: unknown) {
+    if ((error as { code?: number }).code === 404) return null;
+    throw error;
   }
 }
 
