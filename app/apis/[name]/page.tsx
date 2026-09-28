@@ -29,7 +29,7 @@ export default async function ApiPage({
     !!api.status?.replicas && api.status.readyReplicas === api.status.replicas;
 
   return (
-    <div className="mx-auto max-w-lg space-y-6 py-6">
+    <div className="space-y-6 py-6">
       <BackToApisLink />
 
       <h1 className="truncate text-2xl font-bold">{name}</h1>
