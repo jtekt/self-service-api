@@ -43,7 +43,7 @@ export default async function ApisPage() {
               className="block"
             >
               <Card className="transition-colors hover:bg-accent/50">
-                <CardContent className="flex items-center justify-between gap-4">
+                <CardContent className="flex flex-row items-center justify-between gap-4">
                   <div>
                     <p className="font-medium">{api.metadata!.name}</p>
                     {api.metadata?.creationTimestamp && (

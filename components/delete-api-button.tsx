@@ -37,9 +37,13 @@ export function DeleteApiButton({ name }: { name: string }) {
   return (
     <Dialog open={open && !state?.data} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="destructive" size="sm">
+        <Button
+          variant="destructive"
+          size="icon"
+          aria-label={`Delete ${name}`}
+          title="Delete API"
+        >
           <Trash2Icon />
-          Delete
         </Button>
       </DialogTrigger>
 
