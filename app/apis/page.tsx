@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, PlusIcon } from "lucide-react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { Env } from "@/config";
@@ -22,9 +22,11 @@ export default async function ApisPage() {
         <h1 className="text-2xl font-bold">Your APIs</h1>
         <Link
           href="/apis/new"
-          className={buttonVariants({ variant: "default" })}
+          className={buttonVariants({ size: "icon" })}
+          aria-label="New API"
+          title="New API"
         >
-          New API
+          <PlusIcon className="size-4" />
         </Link>
       </div>
 
