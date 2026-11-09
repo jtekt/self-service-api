@@ -44,8 +44,6 @@ spec:
             # while migrating to Gateway API
             - name: API_URL_TEMPLATE
               value: https://{name}.ssc.jtektrnd.net
-            - name: INGRESS_CLASS_NAME
-              value: nginx
             - name: HTTPROUTE_PARENT_REFS
               value: '[{"name":"eg","namespace":"envoy-gateway-system"}]'
 
