@@ -215,8 +215,13 @@ export default function PostgRESTCreate({
   // DEPLOY
   // -------------------------------------------------------------------
   const handleDeploy = async () => {
-    if (!connectionValues || !selectedSchema || tables.length === 0) {
+    if (!connectionValues || !selectedSchema) {
       toast.error("Please connect to a database and select a schema first.");
+      return;
+    }
+
+    if(tables.length === 0) {
+      toast.error("No tables or views found in the selected schema.");
       return;
     }
 
@@ -230,7 +235,6 @@ export default function PostgRESTCreate({
     const payload = {
       uri,
       schema: selectedSchema,
-      tables,
       accessControl: {
         type: accessType,
         users: accessType === "specific" ? specificUsers : [],
@@ -345,7 +349,7 @@ export default function PostgRESTCreate({
     if (tables.length === 0) {
       return (
         <Alert variant="warning">
-          <AlertTitle>No tables found.</AlertTitle>
+          <AlertTitle>No tables or views found.</AlertTitle>
         </Alert>
       );
     }

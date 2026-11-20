@@ -29,7 +29,18 @@ export function TablesViewer({
       {tables.map((table) => (
         <AccordionItem value={table.name} key={table.name}>
           <AccordionTrigger className="cursor-pointer rounded p-4 transition hover:bg-muted/50">
-            <span className="text-lg font-semibold">{table.name}</span>
+            <span className="flex items-center gap-2">
+              <span className="text-lg font-semibold">{table.name}</span>
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs font-medium ${
+                  table.type === "view"
+                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                }`}
+              >
+                {table.type}
+              </span>
+            </span>
           </AccordionTrigger>
           <AccordionContent className="my-3 ml-6 space-y-1.5 text-sm text-muted-foreground">
             {table.columns.map((col) => (

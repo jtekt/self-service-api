@@ -6,6 +6,7 @@ export interface Column {
 
 export interface Table {
   name: string;
+  type: "table" | "view";
   columns: Column[];
 }
 
