@@ -33,10 +33,10 @@ export async function introspectSchema(
   // 1. Get tables and columns
   // -----------------------
   const tablesResult = await pool.query(
-    `SELECT table_name 
-       FROM information_schema.tables 
-       WHERE table_schema = $1 
-       AND table_type = 'BASE TABLE'
+    `SELECT table_name, table_type
+       FROM information_schema.tables
+       WHERE table_schema = $1
+       AND table_type IN ('BASE TABLE', 'VIEW')
        ORDER BY table_name`,
     [schema],
   );
@@ -54,6 +54,7 @@ export async function introspectSchema(
     );
     tables.push({
       name: tableName,
+      type: row.table_type === "VIEW" ? "view" : "table",
       columns: columnsResult.rows.map((c) => ({
         name: c.column_name,
         type: c.data_type,
