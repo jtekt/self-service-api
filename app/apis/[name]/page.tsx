@@ -4,7 +4,8 @@ import { Env } from "@/config";
 import { BackToApisLink } from "@/components/back-to-apis-link";
 import { DeleteApiButton } from "@/components/delete-api-button";
 import { ExternalLink } from "@/components/external-link";
-import { getApi, getApiUrl, isOwner } from "@/lib/k8s";
+import { OwnersEditor } from "@/components/owners-editor";
+import { getApi, getApiUrl, getOwners, isOwner } from "@/lib/k8s";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,10 @@ export default async function ApiPage({
 
   return (
     <div className="space-y-6 py-6">
-      <BackToApisLink />
+      <div className="flex items-center justify-between">
+        <BackToApisLink />
+        <DeleteApiButton name={name} />
+      </div>
 
       <h1 className="truncate text-2xl font-bold">{name}</h1>
 
@@ -62,8 +66,13 @@ export default async function ApiPage({
         )}
       </dl>
 
-      <div className="flex justify-end">
-        <DeleteApiButton name={name} />
+      <div className="space-y-2">
+        <h2 className="font-semibold">Owners</h2>
+        <OwnersEditor
+          apiName={name}
+          initialOwners={getOwners(api)}
+          currentUserEmail={email}
+        />
       </div>
     </div>
   );

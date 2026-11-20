@@ -55,7 +55,7 @@ export async function createSecret(
   const secretData: Record<string, string> = {
     PGRST_DB_URI: dbUri,
     PGRST_DB_ANON_ROLE: username_role,
-    PGRST_DB_SCHEMAS: schema,
+    PGRST_DB_SCHEMAS: "api,private",
     PGRST_SERVER_PORT: "3000",
     PGRST_OPENAPI_MODE: "ignore-privileges",
   };
@@ -140,6 +140,9 @@ export async function createDeployment(
           labels: {
             "app.kubernetes.io/name": name,
           },
+          annotations: {
+            "kubectl.kubernetes.io/restartedAt": new Date().toISOString(),
+          },
         },
         spec: {
           containers: [
@@ -198,7 +201,7 @@ export async function createDeployment(
 }
 
 // Owners' emails, lowercased
-function getOwners(deployment: k8s.V1Deployment): string[] {
+export function getOwners(deployment: k8s.V1Deployment): string[] {
   const owners = deployment.metadata?.annotations?.[OWNER_ANNOTATION] ?? "";
   return owners
     .split(",")
@@ -208,6 +211,20 @@ function getOwners(deployment: k8s.V1Deployment): string[] {
 
 export function isOwner(deployment: k8s.V1Deployment, email: string) {
   return getOwners(deployment).includes(email.toLowerCase());
+}
+
+export async function updateOwners(
+  namespace: string,
+  name: string,
+  owners: string[],
+): Promise<void> {
+  const existing = await appsApi.readNamespacedDeployment({ namespace, name });
+  const annotations = existing.metadata?.annotations ?? {};
+  const joined = owners.join(",");
+  annotations[OWNER_ANNOTATION] = joined;
+  annotations[DEPLOYMENT_MANAGER_USERS_ANNOTATION] = joined;
+  existing.metadata!.annotations = annotations;
+  await appsApi.replaceNamespacedDeployment({ namespace, name, body: existing });
 }
 
 // The API deployed as `name`, or null if there is none. Only returns
