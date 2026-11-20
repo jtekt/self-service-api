@@ -55,7 +55,7 @@ export async function createSecret(
   const secretData: Record<string, string> = {
     PGRST_DB_URI: dbUri,
     PGRST_DB_ANON_ROLE: username_role,
-    PGRST_SCHEMAS: schema,
+    PGRST_DB_SCHEMAS: schema,
     PGRST_SERVER_PORT: "3000",
     PGRST_OPENAPI_MODE: "ignore-privileges",
   };
